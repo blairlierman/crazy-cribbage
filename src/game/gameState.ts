@@ -231,7 +231,6 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
   const newPlayerCards = pegging.playerCards.filter((c) => c.id !== card.id);
 
   const score = scorePegging(newPile, card);
-  const goBonus = hasAbility(state.abilities, 'go_bonus') ? 1 : 0;
   let pts = score.total;
 
   let log = [...state.peggingLog];
@@ -252,8 +251,7 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
 
   // Check for 31 or reset
   if (newCount === 31) {
-    log.push(`Player plays to 31! +2`);
-    playerScore += 2;
+    log.push(`Player plays to 31! (already scored via scorePegging)`);
     newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false };
   }
 
@@ -269,19 +267,9 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
 
 export function playerPass(state: GameState): GameState {
   const pegging = state.pegging;
-  const goBonus = hasAbility(state.abilities, 'go_bonus') ? 1 : 0;
 
-  let log = [...state.peggingLog];
-  let newPegging: PeggingState = { ...pegging, playerPassed: true };
-
-  // If AI also passed (or has no cards), award go
-  const aiCanPlay = pegging.aiCards.some((c) => cardValue(c) + pegging.count <= 31);
-  if (!aiCanPlay) {
-    // Last card - go point for player? Actually if player passed it means ai gets go
-    // This is called when player cannot play
-  }
-
-  return { ...state, pegging: newPegging, peggingLog: log };
+  const newPegging: PeggingState = { ...pegging, playerPassed: true };
+  return { ...state, pegging: newPegging };
 }
 
 export function awardGo(state: GameState, recipient: 'player' | 'ai'): GameState {
@@ -394,7 +382,7 @@ export function scoreShow(state: GameState): GameState {
     player: { ...state.player, score: playerScore },
     ai: { ...state.ai, score: aiScore },
     handResult,
-    phase: winner ? 'round_over' : 'round_over',
+    phase: winner ? 'round_over' : 'show',
     winner,
     dealer: state.dealer === 'player' ? 'ai' : 'player',
   };

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,6 +24,7 @@ import {
   scoreShow,
 } from '../game/gameState';
 import { UnlockedAbilities, hasAbility } from '../game/abilities';
+import { scorePegging } from '../game/scoring';
 import { ROUND_TARGETS, RoundResult } from '../store/runState';
 
 interface GameScreenProps {
@@ -115,7 +115,6 @@ export default function GameScreen({
           const newPile = [...p.pile, aiCard];
           const newCount = p.count + cardValue(aiCard);
           const newAiCards = p.aiCards.filter((c) => c.id !== aiCard.id);
-          const { scorePegging } = require('../game/scoring');
           const score = scorePegging(newPile, aiCard);
           const log = [...g.peggingLog];
           if (score.details.length > 0) {
@@ -131,8 +130,6 @@ export default function GameScreen({
             lastToPlay: 'ai' as const,
           };
           if (newCount === 31) {
-            log.push('AI plays to 31! +2');
-            aiScore += 2;
             newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false };
           }
           let updated = { ...g, ai: { ...g.ai, score: aiScore }, pegging: newPegging, peggingLog: log };
