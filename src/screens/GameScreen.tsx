@@ -203,6 +203,7 @@ export default function GameScreen({
   const playCard = (card: Card) => {
     if (game.phase !== 'pegging') return;
     if (game.winner) return;
+    if (game.pegging.lastToPlay === 'player') return;
     const canPlay = cardValue(card) + game.pegging.count <= 31;
     if (!canPlay) return;
     setGame((g) => playerPlayCard(g, card));
@@ -239,10 +240,13 @@ export default function GameScreen({
     deal();
   };
 
-  const canPlayerPlay = game.phase === 'pegging' &&
+  const isPlayerTurn = game.phase === 'pegging' &&
+    game.pegging.lastToPlay !== 'player';
+
+  const canPlayerPlay = isPlayerTurn &&
     game.pegging.playerCards.some((c) => cardValue(c) + game.pegging.count <= 31);
 
-  const canPlayerPass = game.phase === 'pegging' &&
+  const canPlayerPass = isPlayerTurn &&
     !canPlayerPlay &&
     game.pegging.playerCards.length > 0;
 

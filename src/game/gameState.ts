@@ -140,15 +140,16 @@ export function playerDiscard(state: GameState, cards: Card[]): GameState {
     (c) => !cards.some((d) => d.id === c.id)
   );
 
-  const phase: GamePhase = hasAbility(state.abilities, 'swap_one')
-    ? 'swap'
-    : 'pegging';
-
-  return {
+  const updated: GameState = {
     ...state,
     player: { ...state.player, hand: newHand, discards: cards },
-    phase,
   };
+
+  if (hasAbility(state.abilities, 'swap_one')) {
+    return { ...updated, phase: 'swap' };
+  }
+
+  return proceedToPegging(updated);
 }
 
 export function playerSwap(state: GameState, cardToSwap: Card | null): GameState {
@@ -214,7 +215,7 @@ function proceedToPegging(state: GameState): GameState {
       aiPassed: false,
       playerCards: [...state.player.hand],
       aiCards: [...state.ai.hand],
-      lastToPlay: null,
+      lastToPlay: state.dealer,
     },
     peggingLog: log,
   };
