@@ -4,6 +4,7 @@ dist/
 web-build/
 android/
 ios/
+coverage/
 *.orig.*
 *.jks
 *.p8
