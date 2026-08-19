@@ -1,0 +1,93 @@
+name: Deploy Main to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Preserve branch previews and deploy
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execSync } = require('child_process');
+
+            // Configure git
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            // Fetch or create gh-pages branch
+            try {
+              execSync('git fetch origin gh-pages:gh-pages --depth=1');
+            } catch {
+              execSync('git checkout --orphan gh-pages');
+              execSync('git reset --hard');
+              execSync('echo "" > .nojekyll');
+              execSync('git add .nojekyll');
+              execSync('git commit -m "init gh-pages"');
+              execSync('git checkout -');
+            }
+
+            // Switch to gh-pages in a worktree
+            execSync('git worktree add /tmp/gh-pages gh-pages');
+
+            // Remove all root-level files/dirs except branch preview dirs (those are kebab-case subdirs)
+            const fs = require('fs');
+            const path = require('path');
+            const entries = fs.readdirSync('/tmp/gh-pages');
+            for (const entry of entries) {
+              if (entry === '.git') continue;
+              const full = path.join('/tmp/gh-pages', entry);
+              const stat = fs.statSync(full);
+              // Keep subdirectories that look like branch previews (not dot-dirs)
+              if (stat.isDirectory() && !entry.startsWith('.') && entry !== 'node_modules') {
+                // Check if it's a known branch preview by looking for an index.html inside
+                try {
+                  fs.accessSync(path.join(full, 'index.html'));
+                  // It's a branch preview dir — keep it
+                  continue;
+                } catch {}
+              }
+              execSync(`rm -rf "${full}"`);
+            }
+
+            // Copy new build to root
+            execSync('cp -r dist/. /tmp/gh-pages/');
+
+            // Ensure .nojekyll
+            execSync('touch /tmp/gh-pages/.nojekyll');
+
+            // Commit and push
+            execSync('git -C /tmp/gh-pages add -A');
+            const status = execSync('git -C /tmp/gh-pages status --porcelain').toString();
+            if (status.trim()) {
+              const sha = context.sha.slice(0, 7);
+              execSync(`git -C /tmp/gh-pages commit -m "deploy main @ ${sha}"`);
+              execSync('git -C /tmp/gh-pages push origin gh-pages');
+            } else {
+              console.log('No changes to deploy');
+            }
