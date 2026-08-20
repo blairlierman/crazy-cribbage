@@ -31,6 +31,7 @@ export interface PeggingState {
   playerCards: Card[];  // cards still in hand during pegging
   aiCards: Card[];
   lastToPlay: 'player' | 'ai' | null;
+  pileResetCount: number;  // incremented each time the pile is reset after a go/31
 }
 
 export interface HandResult {
@@ -88,9 +89,8 @@ export function createInitialGameState(
       playerCards: [],
       aiCards: [],
       lastToPlay: null,
+      pileResetCount: 0,
     },
-    handResult: null,
-    abilities,
     swapsLeft: 0,
     luckyRerollAvailable: false,
     targetScore,
@@ -131,6 +131,7 @@ export function dealHands(state: GameState): GameState {
       playerCards: [],
       aiCards: [],
       lastToPlay: null,
+      pileResetCount: 0,
     },
     handResult: null,
     swapsLeft: abilityStacks(state.abilities, 'swap_one'),
@@ -225,6 +226,7 @@ function proceedToPegging(state: GameState): GameState {
       playerCards: [...state.player.hand],
       aiCards: [...state.ai.hand],
       lastToPlay: state.dealer,
+      pileResetCount: 0,
     },
     peggingLog: log,
   };
@@ -264,7 +266,7 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
   // Check for 31 — reset current pile but keep playedCards for display
   if (newCount === 31) {
     log.push(`Player plays to 31! (already scored via scorePegging)`);
-    newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false, lastToPlay: 'player' };
+    newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false, lastToPlay: 'player', pileResetCount: newPegging.pileResetCount + 1 };
   }
 
   let s = { ...state, player: { ...state.player, score: playerScore }, pegging: newPegging, peggingLog: log };
@@ -317,6 +319,7 @@ export function resetPeggingPile(state: GameState, goRecipient: 'player' | 'ai')
       playerPassed: false,
       aiPassed: false,
       lastToPlay: goRecipient,
+      pileResetCount: state.pegging.pileResetCount + 1,
     },
   };
 }

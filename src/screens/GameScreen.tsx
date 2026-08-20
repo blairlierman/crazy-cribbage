@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { aiChooseDiscards, aiChoosePeggingCard } from '../ai/aiLogic';
@@ -39,6 +40,8 @@ export default function GameScreen({
   onRoundComplete,
 }: GameScreenProps) {
   const target = ROUND_TARGETS[roundIndex];
+  const { width } = useWindowDimensions();
+  const wideLayout = width >= 600;
   const [game, setGame] = useState<GameState>(() => {
     const s = createInitialGameState(abilities, target, 'player');
     return dealHands(s);
@@ -134,7 +137,7 @@ export default function GameScreen({
             lastToPlay: 'ai' as const,
           };
           if (newCount === 31) {
-            newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false };
+            newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false, pileResetCount: newPegging.pileResetCount + 1 };
           }
           let updated = { ...g, ai: { ...g.ai, score: aiScore }, pegging: newPegging, peggingLog: log };
           if (aiScore >= g.targetScore) updated = { ...updated, winner: 'ai', phase: 'round_over' as const };
@@ -159,7 +162,7 @@ export default function GameScreen({
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [game.pegging.lastToPlay, game.pegging.playerPassed, game.pegging.playerCards.length, game.pegging.aiCards.length, game.phase, game.winner]);
+  }, [game.pegging.lastToPlay, game.pegging.playerPassed, game.pegging.playerCards.length, game.pegging.aiCards.length, game.pegging.pileResetCount, game.phase, game.winner]);
 
   // ─── Check pegging complete → show ──────────────────────────────────
   useEffect(() => {
@@ -285,45 +288,49 @@ export default function GameScreen({
           </View>
         </View>
 
-        {/* AI Hand */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            {showResult || game.phase === 'show' || game.phase === 'round_over'
-              ? `AI Hand (+${game.handResult?.aiHand ?? 0} pts)`
-              : `AI Hand (${game.ai.hand.length} cards)`}
-          </Text>
-          <View style={styles.row}>
-            {(showResult || game.phase === 'show' || game.phase === 'round_over')
-              ? game.ai.hand.map((c) => <CardView key={c.id} card={c} small />)
-              : game.ai.hand.map((c) => <CardView key={c.id} card={c} faceDown small />)}
-          </View>
-          {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
-            game.handResult?.aiHandBreakdown.length ? (
-            <Text style={styles.handBreakdown}>
-              {game.handResult.aiHandBreakdown.join(', ')}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Crib — shown next to AI hand when AI owns it */}
-        {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
-          game.handResult?.cribOwner === 'ai' && (
-          <View style={styles.section}>
+        {/* AI Hand + Crib (crib to the right on wide screens) */}
+        <View style={wideLayout ? styles.handAndCribRow : undefined}>
+          <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
             <Text style={styles.sectionLabel}>
-              Crib (AI's, +{game.handResult.crib} pts)
+              {showResult || game.phase === 'show' || game.phase === 'round_over'
+                ? `AI Hand (+${game.handResult?.aiHand ?? 0} pts)`
+                : game.phase === 'pegging'
+                ? `AI Hand (${game.pegging.aiCards.length} cards)`
+                : `AI Hand (${game.ai.hand.length} cards)`}
             </Text>
             <View style={styles.row}>
-              {game.crib.slice(0, 4).map((c) => (
-                <CardView key={c.id + '-crib'} card={c} small />
-              ))}
+              {(showResult || game.phase === 'show' || game.phase === 'round_over')
+                ? game.ai.hand.map((c) => <CardView key={c.id} card={c} small />)
+                : game.ai.hand.map((c) => <CardView key={c.id} card={c} faceDown small />)}
             </View>
-            {game.handResult.cribBreakdown.length ? (
+            {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
+              game.handResult?.aiHandBreakdown.length ? (
               <Text style={styles.handBreakdown}>
-                {game.handResult.cribBreakdown.join(', ')}
+                {game.handResult.aiHandBreakdown.join(', ')}
               </Text>
             ) : null}
           </View>
-        )}
+
+          {/* Crib — shown next to AI hand when AI owns it */}
+          {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
+            game.handResult?.cribOwner === 'ai' && (
+            <View style={[styles.section, wideLayout ? styles.cribFlex : undefined]}>
+              <Text style={styles.sectionLabel}>
+                Crib (AI's, +{game.handResult.crib} pts)
+              </Text>
+              <View style={styles.row}>
+                {game.crib.slice(0, 4).map((c) => (
+                  <CardView key={c.id + '-crib'} card={c} small />
+                ))}
+              </View>
+              {game.handResult.cribBreakdown.length ? (
+                <Text style={styles.handBreakdown}>
+                  {game.handResult.cribBreakdown.join(', ')}
+                </Text>
+              ) : null}
+            </View>
+          )}
+        </View>
 
         {/* Pegging Pile */}
         {game.phase === 'pegging' && (
@@ -364,69 +371,71 @@ export default function GameScreen({
           </View>
         )}
 
-        {/* Player Hand */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            {game.phase === 'discard' || game.phase === 'peek_starter'
-              ? `Your Hand — Select ${discardCount} to discard`
-              : game.phase === 'swap'
-              ? 'Your Hand — Select a card to swap (or skip)'
-              : game.phase === 'pegging'
-              ? `Your Hand — Count: ${game.pegging.count}`
-              : 'Your Hand'}
-          </Text>
-          <View style={styles.row}>
-            {(game.phase === 'pegging'
-              ? game.pegging.playerCards
-              : game.player.hand
-            ).map((c) => {
-              const isSelected = selectedCards.includes(c.id);
-              const isSwapSelected = swapSelected === c.id;
-
-              return (
-                <CardView
-                  key={c.id}
-                  card={c}
-                  selected={isSelected || isSwapSelected}
-                  disabled={
-                    game.phase === 'pegging' &&
-                    (cardValue(c) + game.pegging.count > 31 ||
-                      game.pegging.lastToPlay === 'player')
-                  }
-                  onPress={
-                    game.phase === 'discard' || game.phase === 'peek_starter'
-                      ? () => toggleSelectCard(c.id)
-                      : game.phase === 'swap'
-                      ? () => setSwapSelected(c.id === swapSelected ? null : c.id)
-                      : game.phase === 'pegging'
-                      ? () => playCard(c)
-                      : undefined
-                  }
-                />
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Crib — shown next to player hand when player owns it */}
-        {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
-          game.handResult?.cribOwner === 'player' && (
-          <View style={styles.section}>
+        {/* Player Hand + Crib (crib to the right on wide screens) */}
+        <View style={wideLayout ? styles.handAndCribRow : undefined}>
+          <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
             <Text style={styles.sectionLabel}>
-              Crib (yours, +{game.handResult.crib} pts)
+              {game.phase === 'discard' || game.phase === 'peek_starter'
+                ? `Your Hand — Select ${discardCount} to discard`
+                : game.phase === 'swap'
+                ? 'Your Hand — Select a card to swap (or skip)'
+                : game.phase === 'pegging'
+                ? `Your Hand — Count: ${game.pegging.count}`
+                : 'Your Hand'}
             </Text>
             <View style={styles.row}>
-              {game.crib.slice(0, 4).map((c) => (
-                <CardView key={c.id + '-crib'} card={c} small />
-              ))}
+              {(game.phase === 'pegging'
+                ? game.pegging.playerCards
+                : game.player.hand
+              ).map((c) => {
+                const isSelected = selectedCards.includes(c.id);
+                const isSwapSelected = swapSelected === c.id;
+
+                return (
+                  <CardView
+                    key={c.id}
+                    card={c}
+                    selected={isSelected || isSwapSelected}
+                    disabled={
+                      game.phase === 'pegging' &&
+                      (cardValue(c) + game.pegging.count > 31 ||
+                        game.pegging.lastToPlay === 'player')
+                    }
+                    onPress={
+                      game.phase === 'discard' || game.phase === 'peek_starter'
+                        ? () => toggleSelectCard(c.id)
+                        : game.phase === 'swap'
+                        ? () => setSwapSelected(c.id === swapSelected ? null : c.id)
+                        : game.phase === 'pegging'
+                        ? () => playCard(c)
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </View>
-            {game.handResult.cribBreakdown.length ? (
-              <Text style={styles.handBreakdown}>
-                {game.handResult.cribBreakdown.join(', ')}
-              </Text>
-            ) : null}
           </View>
-        )}
+
+          {/* Crib — shown next to player hand when player owns it */}
+          {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
+            game.handResult?.cribOwner === 'player' && (
+            <View style={[styles.section, wideLayout ? styles.cribFlex : undefined]}>
+              <Text style={styles.sectionLabel}>
+                Crib (yours, +{game.handResult.crib} pts)
+              </Text>
+              <View style={styles.row}>
+                {game.crib.slice(0, 4).map((c) => (
+                  <CardView key={c.id + '-crib'} card={c} small />
+                ))}
+              </View>
+              {game.handResult.cribBreakdown.length ? (
+                <Text style={styles.handBreakdown}>
+                  {game.handResult.cribBreakdown.join(', ')}
+                </Text>
+              ) : null}
+            </View>
+          )}
+        </View>
 
         {/* Action Buttons */}
         <View style={styles.actions}>
@@ -639,5 +648,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     fontStyle: 'italic',
+  },
+  handAndCribRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  handFlex: {
+    flex: 2,
+  },
+  cribFlex: {
+    flex: 1,
   },
 });
