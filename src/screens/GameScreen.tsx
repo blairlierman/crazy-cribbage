@@ -115,6 +115,7 @@ export default function GameScreen({
           const newPile = [...p.pile, aiCard];
           const newCount = p.count + cardValue(aiCard);
           const newAiCards = p.aiCards.filter((c) => c.id !== aiCard.id);
+          const newPlayedCards = [...p.playedCards, { card: aiCard, playedBy: 'ai' as const }];
           const score = scorePegging(newPile, aiCard);
           const log = [...g.peggingLog];
           if (score.details.length > 0) {
@@ -124,6 +125,7 @@ export default function GameScreen({
           let newPegging = {
             ...p,
             pile: newPile,
+            playedCards: newPlayedCards,
             count: newCount,
             aiCards: newAiCards,
             playerPassed: false,
@@ -143,7 +145,7 @@ export default function GameScreen({
             // Both can't play: go to last player, reset pile
             const recipient = p.lastToPlay ?? 'player';
             let updated = awardGo(g, recipient);
-            updated = resetPeggingPile(updated);
+            updated = resetPeggingPile(updated, recipient);
             aiThinkingRef.current = false;
             return updated;
           }
@@ -216,8 +218,9 @@ export default function GameScreen({
       const aiCanPlay = p.aiCards.some((c) => cardValue(c) + p.count <= 31);
       if (!aiCanPlay) {
         // Both can't play; last player who played gets go
-        let updated = awardGo(g, p.lastToPlay ?? 'ai');
-        updated = resetPeggingPile(updated);
+        const recipient = p.lastToPlay ?? 'ai';
+        let updated = awardGo(g, recipient);
+        updated = resetPeggingPile(updated, recipient);
         return updated;
       }
       return playerPass(g);
@@ -283,14 +286,42 @@ export default function GameScreen({
         {/* AI Hand */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
-            AI Hand ({game.ai.hand.length} cards)
+            {showResult || game.phase === 'show' || game.phase === 'round_over'
+              ? `AI Hand (+${game.handResult?.aiHand ?? 0} pts)`
+              : `AI Hand (${game.ai.hand.length} cards)`}
           </Text>
           <View style={styles.row}>
-            {game.ai.hand.map((c) => (
-              <CardView key={c.id} card={c} faceDown small />
-            ))}
+            {(showResult || game.phase === 'show' || game.phase === 'round_over')
+              ? game.ai.hand.map((c) => <CardView key={c.id} card={c} small />)
+              : game.ai.hand.map((c) => <CardView key={c.id} card={c} faceDown small />)}
           </View>
+          {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
+            game.handResult?.aiHandBreakdown.length ? (
+            <Text style={styles.handBreakdown}>
+              {game.handResult.aiHandBreakdown.join(', ')}
+            </Text>
+          ) : null}
         </View>
+
+        {/* Crib — revealed after pegging */}
+        {(showResult || game.phase === 'show' || game.phase === 'round_over') && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              Crib ({game.handResult?.cribOwner === 'player' ? 'yours' : "AI's"},{' '}
+              +{game.handResult?.crib ?? 0} pts)
+            </Text>
+            <View style={styles.row}>
+              {game.crib.slice(0, 4).map((c) => (
+                <CardView key={c.id + '-crib'} card={c} small />
+              ))}
+            </View>
+            {game.handResult?.cribBreakdown.length ? (
+              <Text style={styles.handBreakdown}>
+                {game.handResult.cribBreakdown.join(', ')}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* Pegging Pile */}
         {game.phase === 'pegging' && (
@@ -299,11 +330,21 @@ export default function GameScreen({
               Pile (Count: {game.pegging.count})
             </Text>
             <View style={styles.row}>
-              {game.pegging.pile.map((c) => (
-                <CardView key={c.id + '-pile'} card={c} small />
-              ))}
-              {game.pegging.pile.length === 0 && (
+              {game.pegging.pile.length === 0 ? (
                 <Text style={styles.placeholderText}>Empty</Text>
+              ) : (
+                game.pegging.pile.map((c) => {
+                  const pc = game.pegging.playedCards.find((p) => p.card.id === c.id);
+                  const byAi = pc?.playedBy === 'ai';
+                  return (
+                    <View
+                      key={c.id + '-pile'}
+                      style={byAi ? styles.pileCardAi : styles.pileCardPlayer}
+                    >
+                      <CardView card={c} small />
+                    </View>
+                  );
+                })
               )}
             </View>
             {game.pegging.aiPassed && (
@@ -333,13 +374,12 @@ export default function GameScreen({
               : 'Your Hand'}
           </Text>
           <View style={styles.row}>
-            {game.player.hand.map((c) => {
+            {(game.phase === 'pegging'
+              ? game.pegging.playerCards
+              : game.player.hand
+            ).map((c) => {
               const isSelected = selectedCards.includes(c.id);
               const isSwapSelected = swapSelected === c.id;
-              const canPlay =
-                game.phase === 'pegging' &&
-                cardValue(c) + game.pegging.count <= 31 &&
-                game.pegging.lastToPlay !== 'player';
 
               return (
                 <CardView
@@ -564,5 +604,18 @@ const styles = StyleSheet.create({
   },
   aiWon: {
     color: '#EF5350',
+  },
+  // Pile card offsets: AI-played cards float up, player-played cards float down
+  pileCardAi: {
+    transform: [{ translateY: -8 }],
+  },
+  pileCardPlayer: {
+    transform: [{ translateY: 8 }],
+  },
+  handBreakdown: {
+    color: '#A5D6A7',
+    fontSize: 11,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
 });

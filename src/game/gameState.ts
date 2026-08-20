@@ -17,8 +17,14 @@ export interface PlayerState {
   score: number;
 }
 
+export interface PeggingPlayedCard {
+  card: Card;
+  playedBy: 'player' | 'ai';
+}
+
 export interface PeggingState {
   pile: Card[];
+  playedCards: PeggingPlayedCard[];  // all cards played this hand (for display after pile resets)
   count: number;   // sum of pile
   playerPassed: boolean;
   aiPassed: boolean;
@@ -75,6 +81,7 @@ export function createInitialGameState(
     dealer,
     pegging: {
       pile: [],
+      playedCards: [],
       count: 0,
       playerPassed: false,
       aiPassed: false,
@@ -117,6 +124,7 @@ export function dealHands(state: GameState): GameState {
     phase,
     pegging: {
       pile: [],
+      playedCards: [],
       count: 0,
       playerPassed: false,
       aiPassed: false,
@@ -210,6 +218,7 @@ function proceedToPegging(state: GameState): GameState {
     ai: { ...state.ai, score: aiScore },
     pegging: {
       pile: [],
+      playedCards: [],
       count: 0,
       playerPassed: false,
       aiPassed: false,
@@ -230,6 +239,7 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
   const newPile = [...pegging.pile, card];
   const newCount = pegging.count + cardValue(card);
   const newPlayerCards = pegging.playerCards.filter((c) => c.id !== card.id);
+  const newPlayedCards = [...pegging.playedCards, { card, playedBy: 'player' as const }];
 
   const score = scorePegging(newPile, card);
   let pts = score.total;
@@ -244,16 +254,17 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
   let newPegging: PeggingState = {
     ...pegging,
     pile: newPile,
+    playedCards: newPlayedCards,
     count: newCount,
     playerCards: newPlayerCards,
     playerPassed: false,
     lastToPlay: 'player',
   };
 
-  // Check for 31 or reset
+  // Check for 31 — reset current pile but keep playedCards for display
   if (newCount === 31) {
     log.push(`Player plays to 31! (already scored via scorePegging)`);
-    newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false };
+    newPegging = { ...newPegging, pile: [], count: 0, playerPassed: false, aiPassed: false, lastToPlay: 'player' };
   }
 
   let s = { ...state, player: { ...state.player, score: playerScore }, pegging: newPegging, peggingLog: log };
@@ -294,7 +305,9 @@ export function awardGo(state: GameState, recipient: 'player' | 'ai'): GameState
   }
 }
 
-export function resetPeggingPile(state: GameState): GameState {
+// Reset the pegging pile after a go or 31. goRecipient is the player who received
+// the go point; lastToPlay is set to them so the other player leads the next series.
+export function resetPeggingPile(state: GameState, goRecipient: 'player' | 'ai'): GameState {
   return {
     ...state,
     pegging: {
@@ -303,6 +316,7 @@ export function resetPeggingPile(state: GameState): GameState {
       count: 0,
       playerPassed: false,
       aiPassed: false,
+      lastToPlay: goRecipient,
     },
   };
 }
