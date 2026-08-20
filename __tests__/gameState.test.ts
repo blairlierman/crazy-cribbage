@@ -52,6 +52,7 @@ function makePeggingState(overrides: Partial<GameState> = {}): GameState {
       playerCards: [...playerHand],
       aiCards: [...aiHand],
       lastToPlay: 'player', // dealer = player, so AI (pone) leads — but for these tests we override as needed
+      pileResetCount: 0,
     },
     ...overrides,
   };
@@ -72,6 +73,7 @@ describe('pegging hand removal', () => {
         playerCards: [makeCard('5', 'hearts'), makeCard('6', 'clubs')],
         aiCards: [makeCard('2', 'hearts')],
         lastToPlay: 'ai',
+        pileResetCount: 0,
       },
     });
 
@@ -93,6 +95,7 @@ describe('pegging hand removal', () => {
         playerCards: [makeCard('5', 'hearts'), makeCard('6', 'clubs')],
         aiCards: [makeCard('2', 'hearts')],
         lastToPlay: 'ai',
+        pileResetCount: 0,
       },
     });
 
@@ -117,6 +120,7 @@ describe('pegging hand removal', () => {
         playerCards: [tenCard],
         aiCards: [],
         lastToPlay: 'ai',
+        pileResetCount: 0,
       },
     });
 
@@ -139,6 +143,7 @@ describe('pegging hand removal', () => {
         playerCards: [makeCard('A', 'hearts')], // 20 + 1 = 21 — not 31
         aiCards: [],
         lastToPlay: 'ai',
+        pileResetCount: 0,
       },
     });
 
@@ -157,6 +162,7 @@ describe('pegging hand removal', () => {
         playerCards: [makeCard('10', 'diamonds')], // 21 + 10 = 31
         aiCards: [],
         lastToPlay: 'ai',
+        pileResetCount: 0,
       },
     });
 
@@ -171,6 +177,15 @@ describe('pegging hand removal', () => {
 // ─── Go continuation ──────────────────────────────────────────────────────────
 
 describe('go continuation', () => {
+  it('resetPeggingPile increments pileResetCount so AI effect re-fires', () => {
+    const state = makePeggingState();
+    const afterGo = awardGo(state, 'player');
+    const reset = resetPeggingPile(afterGo, 'player');
+    expect(reset.pegging.pileResetCount).toBe(1);
+    const reset2 = resetPeggingPile(reset, 'ai');
+    expect(reset2.pegging.pileResetCount).toBe(2);
+  });
+
   it('resetPeggingPile sets lastToPlay to the go recipient', () => {
     const state = makePeggingState();
     const afterGo = awardGo(state, 'ai');
@@ -216,6 +231,7 @@ describe('go continuation', () => {
         playerCards: [makeCard('6', 'clubs')],
         aiCards: [makeCard('K', 'spades')],
         lastToPlay: 'player',
+        pileResetCount: 0,
       },
     });
 
@@ -238,6 +254,7 @@ describe('go continuation', () => {
         playerCards: [card5], // 5 > 31-28=3; can't play
         aiCards: [makeCard('4', 'hearts')], // 4 > 3; can't play
         lastToPlay: 'player',
+        pileResetCount: 0,
       },
     });
 
