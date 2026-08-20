@@ -35,7 +35,7 @@ jobs:
 
       - name: Build web with base URL
         env:
-          EXPO_BASE_URL: /${{ steps.branch.outputs.name }}
+          EXPO_BASE_URL: /${{ github.event.repository.name }}/${{ steps.branch.outputs.name }}
         run: npx expo export --platform web --output-dir dist
 
       - name: Deploy branch preview
