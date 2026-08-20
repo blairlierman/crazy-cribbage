@@ -333,4 +333,47 @@ describe('show phase reveals AI hand and crib', () => {
       expect(after.winner).toBeNull();
     }
   });
+
+  it('scores non-dealer first and stops when non-dealer wins', () => {
+    const state = makePeggingState({
+      dealer: 'player',
+      targetScore: 121,
+      player: {
+        hand: [
+          makeCard('10', 'hearts'),
+          makeCard('10', 'clubs'),
+          makeCard('10', 'diamonds'),
+          makeCard('10', 'spades'),
+        ],
+        discards: [],
+        score: 120,
+      },
+      ai: {
+        hand: [
+          makeCard('A', 'hearts'),
+          makeCard('A', 'clubs'),
+          makeCard('4', 'diamonds'),
+          makeCard('9', 'spades'),
+        ],
+        discards: [],
+        score: 120,
+      },
+      starter: makeCard('K', 'hearts'),
+      crib: [
+        makeCard('5', 'hearts'),
+        makeCard('5', 'clubs'),
+        makeCard('5', 'diamonds'),
+        makeCard('J', 'spades'),
+      ],
+    });
+
+    const after = scoreShow(state);
+
+    expect(after.winner).toBe('ai');
+    expect(after.phase).toBe('round_over');
+    expect(after.ai.score).toBeGreaterThan(120);
+    expect(after.player.score).toBe(120);
+    expect(after.handResult!.playerHand).toBe(0);
+    expect(after.handResult!.crib).toBe(0);
+  });
 });

@@ -355,29 +355,61 @@ export function scoreShow(state: GameState): GameState {
     return total;
   }
 
-  const playerHandScore = scoreHand(state.player.hand, state.starter, false);
-  const aiHandScore = scoreHand(state.ai.hand, state.starter, false);
-  const cribScore = scoreHand(state.crib.slice(0, 4), state.starter, true);
-
-  const playerHandPts = applyBonuses(playerHandScore);
-  const aiHandPts = applyBonuses(aiHandScore);
-  const cribPts = applyBonuses(cribScore);
-
   const cribOwner = state.dealer;
   const cribGoesToPlayer = cribOwner === 'player' || cribThief;
+  const nonDealer: 'player' | 'ai' = state.dealer === 'player' ? 'ai' : 'player';
+  const dealer: 'player' | 'ai' = state.dealer;
 
-  let playerScore = state.player.score + playerHandPts;
-  let aiScore = state.ai.score + aiHandPts;
+  let playerScore = state.player.score;
+  let aiScore = state.ai.score;
+  let playerHandPts = 0;
+  let aiHandPts = 0;
+  let cribPts = 0;
+  let playerHandBreakdown: string[] = [];
+  let aiHandBreakdown: string[] = [];
+  let cribBreakdown: string[] = [];
+  let winner: 'player' | 'ai' | null = null;
 
-  if (cribGoesToPlayer) {
-    playerScore += cribPts;
-  } else {
-    aiScore += cribPts;
+  const scoreSideHand = (side: 'player' | 'ai') => {
+    const base = scoreHand(
+      side === 'player' ? state.player.hand : state.ai.hand,
+      state.starter!,
+      false
+    );
+    const pts = applyBonuses(base);
+    const breakdown = base.breakdown.map((b) => b.description);
+
+    if (side === 'player') {
+      playerHandPts = pts;
+      playerHandBreakdown = breakdown;
+      playerScore += pts;
+      if (playerScore >= state.targetScore) winner = 'player';
+    } else {
+      aiHandPts = pts;
+      aiHandBreakdown = breakdown;
+      aiScore += pts;
+      if (aiScore >= state.targetScore) winner = 'ai';
+    }
+  };
+
+  scoreSideHand(nonDealer);
+  if (!winner) {
+    scoreSideHand(dealer);
   }
 
-  const playerHandBreakdown = playerHandScore.breakdown.map((b) => b.description);
-  const aiHandBreakdown = aiHandScore.breakdown.map((b) => b.description);
-  const cribBreakdown = cribScore.breakdown.map((b) => b.description);
+  if (!winner) {
+    const baseCribScore = scoreHand(state.crib.slice(0, 4), state.starter, true);
+    cribPts = applyBonuses(baseCribScore);
+    cribBreakdown = baseCribScore.breakdown.map((b) => b.description);
+
+    if (cribGoesToPlayer) {
+      playerScore += cribPts;
+      if (playerScore >= state.targetScore) winner = 'player';
+    } else {
+      aiScore += cribPts;
+      if (aiScore >= state.targetScore) winner = 'ai';
+    }
+  }
 
   const handResult: HandResult = {
     playerPegging: 0, // already added during pegging
@@ -392,10 +424,6 @@ export function scoreShow(state: GameState): GameState {
     aiHandBreakdown,
     cribBreakdown,
   };
-
-  let winner: 'player' | 'ai' | null = null;
-  if (playerScore >= state.targetScore) winner = 'player';
-  else if (aiScore >= state.targetScore) winner = 'ai';
 
   return {
     ...state,
