@@ -21,7 +21,9 @@ module.exports = {
     },
     web: {
       favicon: './assets/favicon.png',
-      // Set via EXPO_BASE_URL env var during CI builds (e.g. "/branch-name")
+    },
+    experiments: {
+      // Set via EXPO_BASE_URL env var during CI builds (e.g. "/repo/branch-name")
       ...(process.env.EXPO_BASE_URL ? { baseUrl: process.env.EXPO_BASE_URL } : {}),
     },
   },
