@@ -101,8 +101,10 @@ export default function GameScreen({
     // Determine if we're waiting on AI
     const lastWasPlayer = pegging.lastToPlay === 'player' || pegging.lastToPlay === null;
     const playerJustPassed = pegging.playerPassed;
+    // If the player has no cards left but AI does, the AI must keep playing
+    const playerOutOfCards = pegging.playerCards.length === 0 && pegging.aiCards.length > 0;
 
-    if (!lastWasPlayer && !playerJustPassed) return;
+    if (!lastWasPlayer && !playerJustPassed && !playerOutOfCards) return;
     if (aiThinkingRef.current) return;
 
     aiThinkingRef.current = true;
@@ -157,7 +159,7 @@ export default function GameScreen({
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [game.pegging.lastToPlay, game.pegging.playerPassed, game.phase, game.winner]);
+  }, [game.pegging.lastToPlay, game.pegging.playerPassed, game.pegging.playerCards.length, game.pegging.aiCards.length, game.phase, game.winner]);
 
   // ─── Check pegging complete → show ──────────────────────────────────
   useEffect(() => {
@@ -303,19 +305,19 @@ export default function GameScreen({
           ) : null}
         </View>
 
-        {/* Crib — revealed after pegging */}
-        {(showResult || game.phase === 'show' || game.phase === 'round_over') && (
+        {/* Crib — shown next to AI hand when AI owns it */}
+        {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
+          game.handResult?.cribOwner === 'ai' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>
-              Crib ({game.handResult?.cribOwner === 'player' ? 'yours' : "AI's"},{' '}
-              +{game.handResult?.crib ?? 0} pts)
+              Crib (AI's, +{game.handResult.crib} pts)
             </Text>
             <View style={styles.row}>
               {game.crib.slice(0, 4).map((c) => (
                 <CardView key={c.id + '-crib'} card={c} small />
               ))}
             </View>
-            {game.handResult?.cribBreakdown.length ? (
+            {game.handResult.cribBreakdown.length ? (
               <Text style={styles.handBreakdown}>
                 {game.handResult.cribBreakdown.join(', ')}
               </Text>
@@ -405,6 +407,26 @@ export default function GameScreen({
             })}
           </View>
         </View>
+
+        {/* Crib — shown next to player hand when player owns it */}
+        {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
+          game.handResult?.cribOwner === 'player' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              Crib (yours, +{game.handResult.crib} pts)
+            </Text>
+            <View style={styles.row}>
+              {game.crib.slice(0, 4).map((c) => (
+                <CardView key={c.id + '-crib'} card={c} small />
+              ))}
+            </View>
+            {game.handResult.cribBreakdown.length ? (
+              <Text style={styles.handBreakdown}>
+                {game.handResult.cribBreakdown.join(', ')}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* Action Buttons */}
         <View style={styles.actions}>
