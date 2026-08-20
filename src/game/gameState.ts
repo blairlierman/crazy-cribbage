@@ -91,6 +91,8 @@ export function createInitialGameState(
       lastToPlay: null,
       pileResetCount: 0,
     },
+    handResult: null,
+    abilities,
     swapsLeft: 0,
     luckyRerollAvailable: false,
     targetScore,

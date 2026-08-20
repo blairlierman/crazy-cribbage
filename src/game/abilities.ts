@@ -80,11 +80,17 @@ export function getAbility(id: AbilityId): Ability {
   return ALL_ABILITIES.find((a) => a.id === id)!;
 }
 
-export function abilityStacks(abilities: UnlockedAbilities, id: AbilityId): number {
-  return abilities[id] ?? 0;
+export function abilityStacks(
+  abilities: UnlockedAbilities | null | undefined,
+  id: AbilityId
+): number {
+  return abilities?.[id] ?? 0;
 }
 
-export function hasAbility(abilities: UnlockedAbilities, id: AbilityId): boolean {
+export function hasAbility(
+  abilities: UnlockedAbilities | null | undefined,
+  id: AbilityId
+): boolean {
   return abilityStacks(abilities, id) > 0;
 }
 
