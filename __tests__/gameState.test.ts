@@ -2,9 +2,13 @@ import { Card } from '../src/game/cards';
 import {
   awardGo,
   createInitialGameState,
+  dealHands,
   playerPass,
   playerPlayCard,
+  playerDiscard,
+  playerSwap,
   resetPeggingPile,
+  rerollStarter,
   scoreShow,
   GameState,
   PeggingState,
@@ -375,5 +379,143 @@ describe('show phase reveals AI hand and crib', () => {
     expect(after.player.score).toBe(120);
     expect(after.handResult!.playerHand).toBe(0);
     expect(after.handResult!.crib).toBe(0);
+  });
+});
+
+describe('deal/discard/swap/reroll behavior', () => {
+  it('deals 6 cards each by default and enters discard phase', () => {
+    const state = createInitialGameState({}, 121, 'player');
+    const dealt = dealHands(state);
+    expect(dealt.player.hand).toHaveLength(6);
+    expect(dealt.ai.hand).toHaveLength(6);
+    expect(dealt.phase).toBe('discard');
+    expect(dealt.starter).toBeNull();
+  });
+
+  it('supports extra discard + peek starter + swap/lucky counters', () => {
+    const state = createInitialGameState(
+      { extra_discard: 1, peek_starter: 1, swap_one: 2, lucky_cut: 1 },
+      121,
+      'player'
+    );
+    const dealt = dealHands(state);
+    expect(dealt.player.hand).toHaveLength(7);
+    expect(dealt.ai.hand).toHaveLength(7);
+    expect(dealt.phase).toBe('peek_starter');
+    expect(dealt.starter).not.toBeNull();
+    expect(dealt.swapsLeft).toBe(2);
+    expect(dealt.luckyRerollAvailable).toBe(true);
+  });
+
+  it('ignores discard attempts with wrong card count', () => {
+    const state = makePeggingState({
+      phase: 'discard',
+      abilities: {},
+      player: {
+        hand: [makeCard('A'), makeCard('2'), makeCard('3')],
+        discards: [],
+        score: 0,
+      },
+    });
+    const same = playerDiscard(state, [makeCard('A')]);
+    expect(same).toBe(state);
+  });
+
+  it('enters swap phase after valid discard when swap ability is present', () => {
+    const state = makePeggingState({
+      phase: 'discard',
+      abilities: { swap_one: 1 },
+      player: {
+        hand: [
+          makeCard('A', 'hearts'),
+          makeCard('2', 'hearts'),
+          makeCard('3', 'hearts'),
+          makeCard('4', 'hearts'),
+          makeCard('5', 'hearts'),
+          makeCard('6', 'hearts'),
+        ],
+        discards: [],
+        score: 0,
+      },
+      starter: makeCard('K', 'clubs'),
+    });
+    const discards = [makeCard('A', 'hearts'), makeCard('2', 'hearts')];
+    const next = playerDiscard(state, discards);
+    expect(next.phase).toBe('swap');
+    expect(next.player.hand).toHaveLength(4);
+  });
+
+  it('playerSwap proceeds to pegging when no swap is performed', () => {
+    const state = makePeggingState({
+      phase: 'swap',
+      swapsLeft: 0,
+      starter: makeCard('Q', 'clubs'),
+    });
+    const next = playerSwap(state, null);
+    expect(next.phase).toBe('pegging');
+  });
+
+  it('playerSwap replaces selected card, decrements swaps, and moves old card to deck', () => {
+    const handCard = makeCard('5', 'hearts');
+    const newDeckCard = makeCard('K', 'spades');
+    const state = makePeggingState({
+      phase: 'swap',
+      swapsLeft: 1,
+      starter: makeCard('Q', 'clubs'),
+      player: {
+        hand: [handCard, makeCard('6', 'clubs'), makeCard('7', 'diamonds'), makeCard('8', 'spades')],
+        discards: [],
+        score: 0,
+      },
+      deck: [newDeckCard, makeCard('9', 'clubs')],
+    });
+
+    const next = playerSwap(state, handCard);
+    expect(next.swapsLeft).toBe(0);
+    expect(next.player.hand.some((c) => c.id === newDeckCard.id)).toBe(true);
+    expect(next.deck[next.deck.length - 1].id).toBe(handCard.id);
+  });
+
+  it('rerollStarter leaves state unchanged when unavailable and updates when available', () => {
+    const base = makePeggingState({
+      starter: makeCard('J', 'hearts'),
+      deck: [makeCard('A', 'clubs'), makeCard('2', 'clubs')],
+      luckyRerollAvailable: false,
+    });
+    const unchanged = rerollStarter(base);
+    expect(unchanged).toBe(base);
+
+    const available = { ...base, luckyRerollAvailable: true };
+    const rerolled = rerollStarter(available);
+    expect(rerolled.starter!.id).toBe('A-clubs');
+    expect(rerolled.luckyRerollAvailable).toBe(false);
+  });
+
+  it('scoreShow returns unchanged state if starter is missing', () => {
+    const state = makePeggingState({ starter: null });
+    const same = scoreShow(state);
+    expect(same).toBe(state);
+  });
+});
+
+describe('awardGo winner branches', () => {
+  it('ends round when player reaches target from go', () => {
+    const state = makePeggingState({
+      targetScore: 10,
+      player: { ...makePeggingState().player, score: 9 },
+    });
+    const after = awardGo(state, 'player');
+    expect(after.winner).toBe('player');
+    expect(after.phase).toBe('round_over');
+  });
+
+  it('ends round when ai reaches target from go', () => {
+    const state = makePeggingState({
+      targetScore: 10,
+      ai: { ...makePeggingState().ai, score: 9 },
+    });
+    const after = awardGo(state, 'ai');
+    expect(after.winner).toBe('ai');
+    expect(after.phase).toBe('round_over');
   });
 });
