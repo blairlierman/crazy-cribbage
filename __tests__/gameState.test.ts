@@ -134,23 +134,6 @@ describe('pegging hand removal', () => {
   });
 
   it('clears the current pile on 31 but preserves playedCards history', () => {
-    const state = makePeggingState({
-      pegging: {
-        pile: [makeCard('10', 'spades'), makeCard('10', 'clubs')], // count = 20
-        playedCards: [
-          { card: makeCard('10', 'spades'), playedBy: 'ai' },
-          { card: makeCard('10', 'clubs'), playedBy: 'player' },
-        ],
-        count: 20,
-        playerPassed: false,
-        aiPassed: false,
-        playerCards: [makeCard('A', 'hearts')], // 20 + 1 = 21 — not 31
-        aiCards: [],
-        lastToPlay: 'ai',
-        pileResetCount: 0,
-      },
-    });
-
     // Set up a real 31 scenario: count 21 + 10 = 31
     const stateFor31 = makePeggingState({
       pegging: {
