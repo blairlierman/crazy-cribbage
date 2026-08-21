@@ -1,2 +1,0 @@
-# crazy-cribbage
-Cribbage Roguelike
