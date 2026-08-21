@@ -15,6 +15,7 @@ export interface Ability {
   name: string;
   description: string;
   maxStacks: number;
+  emoji: string;
 }
 
 export const ALL_ABILITIES: Ability[] = [
@@ -23,54 +24,63 @@ export const ALL_ABILITIES: Ability[] = [
     name: 'Extra Discard',
     description: 'Deal 7 cards; discard 3 to the crib instead of 2.',
     maxStacks: 1,
+    emoji: '🃏',
   },
   {
     id: 'peek_starter',
     name: 'Peek Starter',
     description: 'See the starter card before choosing your discards.',
     maxStacks: 1,
+    emoji: '👁️',
   },
   {
     id: 'swap_one',
     name: 'Card Swap',
     description: 'Once per hand, swap one card from your hand with the top of the deck.',
     maxStacks: 2,
+    emoji: '🔄',
   },
   {
     id: 'steal_crib',
     name: 'Crib Thief',
     description: "When it's the AI's crib, you score it instead.",
     maxStacks: 1,
+    emoji: '🦹',
   },
   {
     id: 'double_fifteens',
     name: 'Power Fifteens',
     description: 'Each fifteen combination scores 4 points instead of 2.',
     maxStacks: 1,
+    emoji: '⚡',
   },
   {
     id: 'run_bonus',
     name: 'Run Bonus',
     description: 'Each card in a run scores 1 extra point.',
     maxStacks: 2,
+    emoji: '🏃',
   },
   {
     id: 'lucky_cut',
     name: 'Lucky Cut',
     description: 'Once per hand, you may recut for a new starter card.',
     maxStacks: 1,
+    emoji: '🍀',
   },
   {
     id: 'go_bonus',
     name: 'Go Bonus',
     description: 'Going go scores 2 points instead of 1.',
     maxStacks: 1,
+    emoji: '🎯',
   },
   {
     id: 'crib_insight',
     name: 'Crib Insight',
     description: "Reveal 1 card from the opponent's crib before scoring.",
     maxStacks: 1,
+    emoji: '🔍',
   },
 ];
 

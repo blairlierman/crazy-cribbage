@@ -266,6 +266,7 @@ export default function GameScreen({
         aiScore={game.ai.score}
         targetScore={target}
         roundIndex={roundIndex}
+        abilities={game.abilities}
       />
 
       <ScrollView contentContainerStyle={styles.scroll}>
