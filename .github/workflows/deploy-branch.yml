@@ -1,0 +1,101 @@
+name: Deploy Branch Preview to GitHub Pages
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - gh-pages
+
+permissions:
+  contents: write
+  statuses: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Derive safe branch name
+        id: branch
+        run: |
+          # Replace slashes and other unsafe chars with hyphens, lowercase
+          SAFE=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr -cd '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
+          echo "name=$SAFE" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web with base URL
+        env:
+          EXPO_BASE_URL: /${{ github.event.repository.name }}/${{ steps.branch.outputs.name }}
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Deploy branch preview
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execSync } = require('child_process');
+            const branchDir = '${{ steps.branch.outputs.name }}';
+
+            // Configure git
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            // Fetch or create gh-pages branch
+            try {
+              execSync('git fetch origin gh-pages:gh-pages --depth=1');
+            } catch {
+              execSync('git checkout --orphan gh-pages');
+              execSync('git reset --hard');
+              execSync('echo "" > .nojekyll');
+              execSync('git add .nojekyll');
+              execSync('git commit -m "init gh-pages"');
+              execSync('git checkout -');
+            }
+
+            execSync('git worktree add /tmp/gh-pages gh-pages');
+
+            // Replace the branch sub-directory
+            execSync(`rm -rf /tmp/gh-pages/${branchDir}`);
+            execSync(`mkdir -p /tmp/gh-pages/${branchDir}`);
+            execSync(`cp -r dist/. /tmp/gh-pages/${branchDir}/`);
+            execSync('touch /tmp/gh-pages/.nojekyll');
+
+            execSync('git -C /tmp/gh-pages add -A');
+            const status = execSync('git -C /tmp/gh-pages status --porcelain').toString();
+            if (status.trim()) {
+              const sha = context.sha.slice(0, 7);
+              execSync(`git -C /tmp/gh-pages commit -m "deploy ${branchDir} @ ${sha}"`);
+              execSync('git -C /tmp/gh-pages push origin gh-pages');
+            } else {
+              console.log('No changes to deploy');
+            }
+
+      - name: Post preview URL as commit status
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branchDir = '${{ steps.branch.outputs.name }}';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const previewUrl = `https://${owner}.github.io/${repo}/${branchDir}/`;
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: context.sha,
+              state: 'success',
+              target_url: previewUrl,
+              description: 'Branch preview deployed',
+              context: 'GitHub Pages Preview',
+            });
+            console.log(`Preview: ${previewUrl}`);

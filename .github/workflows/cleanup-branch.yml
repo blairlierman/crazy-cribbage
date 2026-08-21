@@ -1,0 +1,68 @@
+name: Cleanup Branch Preview
+
+on:
+  delete:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    # For delete events use github.event.ref; for PR close use the head branch name
+    steps:
+      - name: Resolve branch name
+        id: branch
+        run: |
+          if [ "${{ github.event_name }}" = "delete" ]; then
+            RAW="${{ github.event.ref }}"
+          else
+            RAW="${{ github.head_ref }}"
+          fi
+          SAFE=$(echo "$RAW" | tr '/' '-' | tr -cd '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
+          echo "name=$SAFE" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout default branch (for git tooling)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Remove branch preview directory
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execSync } = require('child_process');
+            const branchDir = '${{ steps.branch.outputs.name }}';
+
+            // Configure git
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            try {
+              execSync('git fetch origin gh-pages:gh-pages --depth=1');
+            } catch {
+              console.log('gh-pages branch does not exist yet — nothing to clean up');
+              return;
+            }
+
+            execSync('git worktree add /tmp/gh-pages gh-pages');
+
+            const fs = require('fs');
+            const previewPath = `/tmp/gh-pages/${branchDir}`;
+            if (!fs.existsSync(previewPath)) {
+              console.log(`No preview directory found for branch: ${branchDir}`);
+              return;
+            }
+
+            execSync(`rm -rf ${previewPath}`);
+            execSync('git -C /tmp/gh-pages add -A');
+            const status = execSync('git -C /tmp/gh-pages status --porcelain').toString();
+            if (status.trim()) {
+              execSync(`git -C /tmp/gh-pages commit -m "remove preview for ${branchDir}"`);
+              execSync('git -C /tmp/gh-pages push origin gh-pages');
+              console.log(`Removed preview for branch: ${branchDir}`);
+            }
