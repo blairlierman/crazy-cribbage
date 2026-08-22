@@ -1,14 +1,14 @@
 export type AbilityId =
-  | 'extra_discard'       // can discard 3 cards to crib instead of 2
-  | 'peek_starter'        // see the starter card before discarding
-  | 'swap_one'            // swap 1 card in hand with top of deck
-  | 'steal_crib'          // when AI has crib, you score it instead
-  | 'double_fifteens'     // fifteens count for 4 pts each instead of 2
-  | 'run_bonus'           // runs score +1 extra per card
-  | 'lucky_cut'           // reroll the starter card once per hand
-  | 'extra_hand_card'     // deal 7 cards, discard 3 (keep 4 + extra for scoring)
-  | 'go_bonus'            // go = 2 pts instead of 1
-  | 'crib_insight';       // see 1 card in opponent crib before show
+  | 'extra_discard' // can discard 3 cards to crib instead of 2
+  | 'peek_starter' // see the starter card before discarding
+  | 'swap_one' // swap 1 card in hand with top of deck
+  | 'steal_crib' // when AI has crib, you score it instead
+  | 'double_fifteens' // fifteens count for 4 pts each instead of 2
+  | 'run_bonus' // runs score +1 extra per card
+  | 'lucky_cut' // reroll the starter card once per hand
+  | 'extra_hand_card' // deal 7 cards, discard 3 (keep 4 + extra for scoring)
+  | 'go_bonus' // go = 2 pts instead of 1
+  | 'crib_insight'; // see 1 card in opponent crib before show
 
 export interface Ability {
   id: AbilityId;
@@ -92,26 +92,21 @@ export function getAbility(id: AbilityId): Ability {
 
 export function abilityStacks(
   abilities: UnlockedAbilities | null | undefined,
-  id: AbilityId
+  id: AbilityId,
 ): number {
   return abilities?.[id] ?? 0;
 }
 
 export function hasAbility(
   abilities: UnlockedAbilities | null | undefined,
-  id: AbilityId
+  id: AbilityId,
 ): boolean {
   return abilityStacks(abilities, id) > 0;
 }
 
 // Pick 3 random abilities to offer as upgrade choices
-export function rollAbilityChoices(
-  current: UnlockedAbilities,
-  count = 3
-): Ability[] {
-  const available = ALL_ABILITIES.filter(
-    (a) => (current[a.id] ?? 0) < a.maxStacks
-  );
+export function rollAbilityChoices(current: UnlockedAbilities, count = 3): Ability[] {
+  const available = ALL_ABILITIES.filter((a) => (current[a.id] ?? 0) < a.maxStacks);
   // Fisher-Yates shuffle on a copy
   const shuffled = [...available];
   for (let i = shuffled.length - 1; i > 0; i--) {

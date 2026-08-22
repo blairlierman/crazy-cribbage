@@ -23,7 +23,8 @@ export function scoreHand(hand: Card[], starter: Card, isCrib = false): ScoredHa
 
   // Fifteens
   const fifteens = countFifteens(cards);
-  if (fifteens > 0) add(fifteens * 2, `${fifteens} fifteen${fifteens > 1 ? 's' : ''} (${fifteens * 2} pts)`);
+  if (fifteens > 0)
+    add(fifteens * 2, `${fifteens} fifteen${fifteens > 1 ? 's' : ''} (${fifteens * 2} pts)`);
 
   // Pairs
   const pairsScore = countPairs(cards);
@@ -47,7 +48,7 @@ export function scoreHand(hand: Card[], starter: Card, isCrib = false): ScoredHa
 function countFifteens(cards: Card[]): number {
   let count = 0;
   const n = cards.length;
-  for (let mask = 1; mask < (1 << n); mask++) {
+  for (let mask = 1; mask < 1 << n; mask++) {
     let sum = 0;
     for (let i = 0; i < n; i++) {
       if (mask & (1 << i)) sum += cardValue(cards[i]);
@@ -70,13 +71,15 @@ function countPairs(cards: Card[]): number {
 function countRuns(cards: Card[]): number {
   // Find longest runs and count them
   const orders = cards.map((c) => cardOrder(c)).sort((a, b) => a - b);
-  
+
   // Count occurrences of each rank order
   const counts: Record<number, number> = {};
   for (const o of orders) {
     counts[o] = (counts[o] || 0) + 1;
   }
-  const unique = Object.keys(counts).map(Number).sort((a, b) => a - b);
+  const unique = Object.keys(counts)
+    .map(Number)
+    .sort((a, b) => a - b);
 
   let score = 0;
   let i = 0;

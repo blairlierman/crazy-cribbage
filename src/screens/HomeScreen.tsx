@@ -15,15 +15,13 @@ export default function HomeScreen({ onStartRun }: HomeScreenProps) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>How to Play</Text>
         <Text style={styles.cardText}>
-          Beat the AI through 4 rounds: first to{' '}
-          <Text style={styles.highlight}>31</Text>, then{' '}
-          <Text style={styles.highlight}>61</Text>, then{' '}
-          <Text style={styles.highlight}>91</Text>, then{' '}
-          <Text style={styles.highlight}>121</Text> points.
+          Beat the AI through 4 rounds: first to <Text style={styles.highlight}>31</Text>, then{' '}
+          <Text style={styles.highlight}>61</Text>, then <Text style={styles.highlight}>91</Text>,
+          then <Text style={styles.highlight}>121</Text> points.
         </Text>
         <Text style={styles.cardText}>
-          Win each round to unlock a new <Text style={styles.highlight}>ability</Text> for
-          future rounds!
+          Win each round to unlock a new <Text style={styles.highlight}>ability</Text> for future
+          rounds!
         </Text>
       </View>
 

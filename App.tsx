@@ -6,12 +6,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import GameScreen from './src/screens/GameScreen';
 import RoundCompleteScreen from './src/screens/RoundCompleteScreen';
 import RunCompleteScreen from './src/screens/RunCompleteScreen';
-import {
-  RunState,
-  RoundResult,
-  advanceRound,
-  createInitialRunState,
-} from './src/store/runState';
+import { RunState, RoundResult, advanceRound, createInitialRunState } from './src/store/runState';
 
 type AppScreen = 'home' | 'game' | 'round_complete' | 'run_complete';
 

@@ -22,9 +22,7 @@ export default function RoundCompleteScreen({
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.emoji}>{result.playerWon ? '🏆' : '💀'}</Text>
-      <Text style={styles.title}>
-        {result.playerWon ? 'Round Complete!' : 'Defeated!'}
-      </Text>
+      <Text style={styles.title}>{result.playerWon ? 'Round Complete!' : 'Defeated!'}</Text>
       <Text style={styles.targetText}>
         {result.playerWon
           ? `You reached ${result.playerFinalScore} pts (target: ${result.targetScore})`
@@ -52,7 +50,9 @@ export default function RoundCompleteScreen({
             disabled={!chosen}
           >
             <Text style={styles.btnText}>
-              {nextTarget ? `Continue to Round ${result.roundIndex + 2} (to ${nextTarget})` : 'Finish!'}
+              {nextTarget
+                ? `Continue to Round ${result.roundIndex + 2} (to ${nextTarget})`
+                : 'Finish!'}
             </Text>
           </TouchableOpacity>
 

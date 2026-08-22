@@ -28,10 +28,14 @@ export default function RunCompleteScreen({ run, onStartNewRun }: RunCompleteScr
           const result = run.roundResults[idx];
           return (
             <View key={idx} style={styles.roundRow}>
-              <Text style={styles.roundLabel}>Round {idx + 1} (to {target})</Text>
+              <Text style={styles.roundLabel}>
+                Round {idx + 1} (to {target})
+              </Text>
               {result ? (
                 <Text style={[styles.roundResult, result.playerWon ? styles.win : styles.loss]}>
-                  {result.playerWon ? `✓ Win (${result.playerFinalScore} pts)` : `✗ Loss (${result.playerFinalScore} pts)`}
+                  {result.playerWon
+                    ? `✓ Win (${result.playerFinalScore} pts)`
+                    : `✗ Loss (${result.playerFinalScore} pts)`}
                 </Text>
               ) : (
                 <Text style={styles.roundSkipped}>—</Text>

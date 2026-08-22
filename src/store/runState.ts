@@ -4,7 +4,7 @@ export const ROUND_TARGETS = [31, 61, 91, 121] as const;
 export type RoundTarget = (typeof ROUND_TARGETS)[number];
 
 export interface RunState {
-  currentRoundIndex: number;  // 0-3
+  currentRoundIndex: number; // 0-3
   abilities: UnlockedAbilities;
   roundResults: RoundResult[];
   runComplete: boolean;
@@ -36,7 +36,7 @@ export function currentTarget(run: RunState): RoundTarget {
 export function advanceRound(
   run: RunState,
   result: RoundResult,
-  chosenAbility: AbilityId | null
+  chosenAbility: AbilityId | null,
 ): RunState {
   const roundResults = [...run.roundResults, result];
 

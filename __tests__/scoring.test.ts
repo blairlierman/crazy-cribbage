@@ -102,7 +102,7 @@ describe('scorePegging', () => {
     const pile: Card[] = [
       makeCard('10', 'spades'),
       makeCard('10', 'hearts'),
-      makeCard('A', 'clubs'),  // 10+10+1 = 21 ... try different combo
+      makeCard('A', 'clubs'), // 10+10+1 = 21 ... try different combo
     ];
     // 10 + A = 11, then 10 + 10 = 31 is not possible with face cards
     // Use: 7 + 8 + 6 + 10 = 31
