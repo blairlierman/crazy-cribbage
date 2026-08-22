@@ -14,6 +14,7 @@ import { Card, cardValue } from '../game/cards';
 import {
   GameState,
   awardGo,
+  canAdvanceFromRound,
   createInitialGameState,
   dealHands,
   playerDiscard,
@@ -476,24 +477,32 @@ export default function GameScreen({
         </View>
 
         {/* Show Results */}
-        {(game.phase === 'round_over' || showResult) && game.handResult && (
+        {(game.phase === 'round_over' || showResult) && canAdvanceFromRound(game) && (
           <View style={styles.resultBox}>
             <Text style={styles.resultTitle}>Hand Results</Text>
-            {game.handResult.playerHand > 0 && (
+            {game.handResult ? (
+              <>
+                {game.handResult.playerHand > 0 && (
+                  <Text style={styles.resultLine}>
+                    Your hand: +{game.handResult.playerHand} pts
+                    {game.handResult.playerHandBreakdown.length > 0 &&
+                      ` (${game.handResult.playerHandBreakdown.join(', ')})`}
+                  </Text>
+                )}
+                {game.handResult.aiHand > 0 && (
+                  <Text style={styles.resultLine}>
+                    AI hand: +{game.handResult.aiHand} pts
+                  </Text>
+                )}
+                {game.handResult.crib > 0 && (
+                  <Text style={styles.resultLine}>
+                    Crib ({game.handResult.cribOwner === 'player' ? 'yours' : "AI's"}): +{game.handResult.crib} pts
+                  </Text>
+                )}
+              </>
+            ) : (
               <Text style={styles.resultLine}>
-                Your hand: +{game.handResult.playerHand} pts
-                {game.handResult.playerHandBreakdown.length > 0 &&
-                  ` (${game.handResult.playerHandBreakdown.join(', ')})`}
-              </Text>
-            )}
-            {game.handResult.aiHand > 0 && (
-              <Text style={styles.resultLine}>
-                AI hand: +{game.handResult.aiHand} pts
-              </Text>
-            )}
-            {game.handResult.crib > 0 && (
-              <Text style={styles.resultLine}>
-                Crib ({game.handResult.cribOwner === 'player' ? 'yours' : "AI's"}): +{game.handResult.crib} pts
+                Pegging ended with a game-winning score. Continue to the next hand.
               </Text>
             )}
 
