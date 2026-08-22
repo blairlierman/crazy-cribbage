@@ -447,7 +447,7 @@ export default function GameScreen({
               onPress={confirmDiscard}
               disabled={selectedCards.length !== discardCount}
             >
-              <Text style={styles.btnText}>Discard ({selectedCards.length}/{discardCount})</Text>
+              <Text style={styles.btnText}>Discard to {game.dealer === 'player' ? 'yours' : "AI's"} ({selectedCards.length}/{discardCount})</Text>
             </TouchableOpacity>
           )}
 
