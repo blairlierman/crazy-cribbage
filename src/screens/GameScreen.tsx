@@ -259,6 +259,11 @@ export default function GameScreen({
     !canPlayerPlay &&
     game.pegging.playerCards.length > 0;
 
+  const cribOwner = game.dealer === 'player' ? 'player' : 'ai';
+  const cribOwnerEmoji = cribOwner === 'player' ? '👤' : '🤖';
+  const cribOwnerText = cribOwner === 'player' ? 'Your crib' : "AI's crib";
+  const visibleCribOwner = game.phase === 'pegging' ? game.dealer : game.handResult?.cribOwner ?? game.dealer;
+
   // ─── Render ───────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
@@ -295,10 +300,10 @@ export default function GameScreen({
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
             <Text style={styles.sectionLabel}>
               {showResult || game.phase === 'show' || game.phase === 'round_over'
-                ? `AI Hand (+${game.handResult?.aiHand ?? 0} pts)`
+                ? `AI Hand 🤖 (+${game.handResult?.aiHand ?? 0} pts)`
                 : game.phase === 'pegging'
-                ? `AI Hand (${game.pegging.aiCards.length} cards)`
-                : `AI Hand (${game.ai.hand.length} cards)`}
+                ? `AI Hand 🤖 (${game.pegging.aiCards.length} cards)`
+                : `AI Hand 🤖 (${game.ai.hand.length} cards)`}
             </Text>
             <View style={styles.row}>
               {(showResult || game.phase === 'show' || game.phase === 'round_over')
@@ -314,24 +319,25 @@ export default function GameScreen({
           </View>
 
           {/* Crib — shown next to AI hand when AI owns it */}
-          {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
-            game.handResult?.cribOwner === 'ai' && (
+          {((showResult || game.phase === 'show' || game.phase === 'round_over') &&
+            game.handResult?.cribOwner === 'ai') ||
+            (game.phase === 'pegging' && game.dealer === 'ai' && game.crib.length > 0) ? (
             <View style={[styles.section, wideLayout ? styles.cribFlex : undefined]}>
               <Text style={styles.sectionLabel}>
-                Crib (AI's, +{game.handResult.crib} pts)
+                {game.phase === 'pegging' ? "Crib (AI's 🤖)" : `Crib (AI's 🤖, +${game.handResult?.crib ?? 0} pts)`}
               </Text>
               <View style={styles.row}>
                 {game.crib.slice(0, 4).map((c) => (
-                  <CardView key={c.id + '-crib'} card={c} small />
+                  <CardView key={c.id + '-crib'} card={c} small faceDown={game.phase === 'pegging'} />
                 ))}
               </View>
-              {game.handResult.cribBreakdown.length ? (
+              {game.phase !== 'pegging' && game.handResult?.cribBreakdown.length ? (
                 <Text style={styles.handBreakdown}>
                   {game.handResult.cribBreakdown.join(', ')}
                 </Text>
               ) : null}
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Pegging Pile */}
@@ -378,12 +384,12 @@ export default function GameScreen({
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
             <Text style={styles.sectionLabel}>
               {game.phase === 'discard' || game.phase === 'peek_starter'
-                ? `Your Hand — Select ${discardCount} to discard`
+                ? `Your Hand 👤 — Select ${discardCount} to discard`
                 : game.phase === 'swap'
-                ? 'Your Hand — Select a card to swap (or skip)'
+                ? 'Your Hand 👤 — Select a card to swap (or skip)'
                 : game.phase === 'pegging'
-                ? `Your Hand — Count: ${game.pegging.count}`
-                : 'Your Hand'}
+                ? `Your Hand 👤 — Count: ${game.pegging.count}`
+                : 'Your Hand 👤'}
             </Text>
             <View style={styles.row}>
               {(game.phase === 'pegging'
@@ -419,24 +425,25 @@ export default function GameScreen({
           </View>
 
           {/* Crib — shown next to player hand when player owns it */}
-          {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
-            game.handResult?.cribOwner === 'player' && (
+          {((showResult || game.phase === 'show' || game.phase === 'round_over') &&
+            game.handResult?.cribOwner === 'player') ||
+            (game.phase === 'pegging' && game.dealer === 'player' && game.crib.length > 0) ? (
             <View style={[styles.section, wideLayout ? styles.cribFlex : undefined]}>
               <Text style={styles.sectionLabel}>
-                Crib (yours, +{game.handResult.crib} pts)
+                {game.phase === 'pegging' ? 'Crib (yours 👤)' : `Crib (yours 👤, +${game.handResult?.crib ?? 0} pts)`}
               </Text>
               <View style={styles.row}>
                 {game.crib.slice(0, 4).map((c) => (
-                  <CardView key={c.id + '-crib'} card={c} small />
+                  <CardView key={c.id + '-crib'} card={c} small faceDown={game.phase === 'pegging'} />
                 ))}
               </View>
-              {game.handResult.cribBreakdown.length ? (
+              {game.phase !== 'pegging' && game.handResult?.cribBreakdown.length ? (
                 <Text style={styles.handBreakdown}>
                   {game.handResult.cribBreakdown.join(', ')}
                 </Text>
               ) : null}
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Action Buttons */}
@@ -447,7 +454,7 @@ export default function GameScreen({
               onPress={confirmDiscard}
               disabled={selectedCards.length !== discardCount}
             >
-              <Text style={styles.btnText}>Discard to {game.dealer === 'player' ? 'yours' : "AI's"} ({selectedCards.length}/{discardCount})</Text>
+              <Text style={styles.btnText}>Discard to {cribOwnerText} {cribOwnerEmoji} ({selectedCards.length}/{discardCount})</Text>
             </TouchableOpacity>
           )}
 
