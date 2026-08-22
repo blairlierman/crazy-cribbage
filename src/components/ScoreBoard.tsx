@@ -44,7 +44,13 @@ export default function ScoreBoard({
           <Text style={styles.label}>You</Text>
           <Text style={styles.score}>{playerScore}</Text>
           <View style={styles.barTrack}>
-            <View style={[styles.barFill, styles.playerBar, { width: `${Math.min(100, (playerScore / targetScore) * 100)}%` }]} />
+            <View
+              style={[
+                styles.barFill,
+                styles.playerBar,
+                { width: `${Math.min(100, (playerScore / targetScore) * 100)}%` },
+              ]}
+            />
           </View>
         </View>
         <Text style={styles.target}>/ {targetScore}</Text>
@@ -52,7 +58,13 @@ export default function ScoreBoard({
           <Text style={styles.label}>AI</Text>
           <Text style={styles.score}>{aiScore}</Text>
           <View style={styles.barTrack}>
-            <View style={[styles.barFill, styles.aiBar, { width: `${Math.min(100, (aiScore / targetScore) * 100)}%` }]} />
+            <View
+              style={[
+                styles.barFill,
+                styles.aiBar,
+                { width: `${Math.min(100, (aiScore / targetScore) * 100)}%` },
+              ]}
+            />
           </View>
         </View>
       </View>

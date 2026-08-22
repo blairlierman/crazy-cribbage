@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -eu
+
+FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.json' '*.md' '*.yml' '*.yaml')
+
+if [ -n "$FILES" ]; then
+  printf '%s\n' "$FILES" | xargs npx prettier --write --ignore-unknown
+  printf '%s\n' "$FILES" | xargs git add
+fi

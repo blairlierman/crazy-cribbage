@@ -38,9 +38,7 @@ export default function CardView({
         disabled && styles.disabled,
       ]}
     >
-      <Text style={[styles.rank, isRed && styles.red, small && styles.smallRank]}>
-        {card.rank}
-      </Text>
+      <Text style={[styles.rank, isRed && styles.red, small && styles.smallRank]}>{card.rank}</Text>
       <Text style={[styles.suit, isRed && styles.red, small && styles.smallSuit]}>
         {suitSymbol(card.suit)}
       </Text>

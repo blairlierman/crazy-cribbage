@@ -26,11 +26,7 @@ export function aiChooseDiscards(hand: Card[], starter: Card | null): Card[] {
 }
 
 // AI chooses which card to play during pegging
-export function aiChoosePeggingCard(
-  hand: Card[],
-  pileCount: number,
-  pile: Card[]
-): Card | null {
+export function aiChoosePeggingCard(hand: Card[], pileCount: number, pile: Card[]): Card | null {
   const playable = hand.filter((c) => cardValue(c) + pileCount <= 31);
   if (playable.length === 0) return null;
 
