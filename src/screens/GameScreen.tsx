@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,7 +10,7 @@ import {
 import { aiChooseDiscards, aiChoosePeggingCard } from '../ai/aiLogic';
 import CardView from '../components/CardView';
 import ScoreBoard from '../components/ScoreBoard';
-import { Card, cardValue } from '../game/cards';
+import { Card, cardValue, sortCards } from '../game/cards';
 import {
   GameState,
   awardGo,
@@ -46,9 +46,18 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('suit');
   const aiThinkingRef = useRef(false);
 
   const discardCount = hasAbility(abilities, 'extra_discard') ? 3 : 2;
+  const sortedPlayerHand = useMemo(
+    () =>
+      sortCards(
+        game.phase === 'pegging' ? game.pegging.playerCards : game.player.hand,
+        handSortOrder,
+      ),
+    [game.phase, game.pegging.playerCards, game.player.hand, handSortOrder],
+  );
 
   // ─── Deal a fresh hand ───────────────────────────────────────────────
   const deal = useCallback(() => {
@@ -401,17 +410,35 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
         {/* Player Hand + Crib (crib to the right on wide screens) */}
         <View style={wideLayout ? styles.handAndCribRow : undefined}>
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
-            <Text style={styles.sectionLabel}>
-              {game.phase === 'discard' || game.phase === 'peek_starter'
-                ? `Your Hand 👤 — Select ${discardCount} to discard`
-                : game.phase === 'swap'
-                  ? 'Your Hand 👤 — Select a card to swap (or skip)'
-                  : game.phase === 'pegging'
-                    ? `Your Hand 👤 — Count: ${game.pegging.count}`
-                    : 'Your Hand 👤'}
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionLabel}>
+                {game.phase === 'discard' || game.phase === 'peek_starter'
+                  ? `Your Hand 👤 — Select ${discardCount} to discard`
+                  : game.phase === 'swap'
+                    ? 'Your Hand 👤 — Select a card to swap (or skip)'
+                    : game.phase === 'pegging'
+                      ? `Your Hand 👤 — Count: ${game.pegging.count}`
+                      : 'Your Hand 👤'}
+              </Text>
+              <View style={styles.titleWithToggle}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    handSortOrder === 'suit'
+                      ? 'Sort hands by suit first'
+                      : 'Sort hands by rank first'
+                  }
+                  style={styles.sortToggle}
+                  onPress={() => setHandSortOrder((prev) => (prev === 'suit' ? 'rank' : 'suit'))}
+                >
+                  <Text style={styles.sortToggleText}>
+                    {handSortOrder === 'suit' ? '♠️' : '🔢'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <View style={styles.row}>
-              {(game.phase === 'pegging' ? game.pegging.playerCards : game.player.hand).map((c) => {
+              {sortedPlayerHand.map((c) => {
                 const isSelected = selectedCards.includes(c.id);
                 const isSwapSelected = swapSelected === c.id;
 
@@ -568,13 +595,38 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 12,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  titleWithToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   sectionLabel: {
     color: '#A5D6A7',
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 4,
     fontWeight: '600',
+    flexShrink: 1,
+  },
+  sortToggle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  sortToggleText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   row: {
     flexDirection: 'row',

@@ -1,9 +1,11 @@
 import {
+  Card,
   cardOrder,
   cardValue,
   createDeck,
   rankDisplay,
   shuffle,
+  sortCards,
   suitSymbol,
 } from '../src/game/cards';
 
@@ -31,6 +33,42 @@ describe('cards helpers', () => {
     } finally {
       randomSpy.mockRestore();
     }
+  });
+
+  it('sorts cards by suit first, then rank', () => {
+    const cards: Card[] = [
+      { rank: 'K', suit: 'hearts', id: 'K-hearts' },
+      { rank: 'A', suit: 'clubs', id: 'A-clubs' },
+      { rank: '7', suit: 'spades', id: '7-spades' },
+      { rank: '2', suit: 'clubs', id: '2-clubs' },
+      { rank: 'Q', suit: 'diamonds', id: 'Q-diamonds' },
+    ];
+
+    expect(sortCards(cards).map((card) => card.id)).toEqual([
+      'Q-diamonds',
+      'A-clubs',
+      '2-clubs',
+      'K-hearts',
+      '7-spades',
+    ]);
+  });
+
+  it('sorts cards by rank first, then suit', () => {
+    const cards: Card[] = [
+      { rank: 'K', suit: 'hearts', id: 'K-hearts' },
+      { rank: 'A', suit: 'clubs', id: 'A-clubs' },
+      { rank: '7', suit: 'spades', id: '7-spades' },
+      { rank: '2', suit: 'clubs', id: '2-clubs' },
+      { rank: 'Q', suit: 'diamonds', id: 'Q-diamonds' },
+    ];
+
+    expect(sortCards(cards, 'rank').map((card) => card.id)).toEqual([
+      'A-clubs',
+      '2-clubs',
+      '7-spades',
+      'Q-diamonds',
+      'K-hearts',
+    ]);
   });
 
   it('returns suit symbols and rank display', () => {

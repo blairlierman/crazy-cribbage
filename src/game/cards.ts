@@ -8,7 +8,7 @@ export interface Card {
 }
 
 export const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-export const SUITS: Suit[] = ['clubs', 'diamonds', 'hearts', 'spades'];
+export const SUITS: Suit[] = ['diamonds', 'clubs', 'hearts', 'spades'];
 
 export const RANK_VALUES: Record<Rank, number> = {
   A: 1,
@@ -48,6 +48,19 @@ export function cardValue(card: Card): number {
 
 export function cardOrder(card: Card): number {
   return RANK_ORDER[card.rank];
+}
+
+export function sortCards(cards: Card[], order: 'suit' | 'rank' = 'suit'): Card[] {
+  return [...cards].sort((a, b) => {
+    const suitOrder = SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
+    const rankOrder = cardOrder(a) - cardOrder(b);
+
+    if (order === 'suit') {
+      return suitOrder !== 0 ? suitOrder : rankOrder;
+    }
+
+    return rankOrder !== 0 ? rankOrder : suitOrder;
+  });
 }
 
 export function createDeck(): Card[] {
