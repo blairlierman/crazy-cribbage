@@ -53,7 +53,7 @@ export default function RunCompleteScreen({ run, onStartNewRun }: RunCompleteScr
             const ability = ALL_ABILITIES.find((a) => a.id === id);
             return ability ? (
               <Text key={id} style={styles.abilityLine}>
-                • {ability.name} ×{run.abilities[id]}
+                {ability.emoji} {ability.name}
               </Text>
             ) : null;
           })}

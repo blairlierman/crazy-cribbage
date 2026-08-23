@@ -39,7 +39,10 @@ export default function RoundCompleteScreen({
               onPress={() => setChosen(ability.id)}
               activeOpacity={0.8}
             >
-              <Text style={styles.abilityName}>{ability.name}</Text>
+              <View style={styles.abilityHeader}>
+                <Text style={styles.abilityEmoji}>{ability.emoji}</Text>
+                <Text style={styles.abilityName}>{ability.name}</Text>
+              </View>
               <Text style={styles.abilityDesc}>{ability.description}</Text>
             </TouchableOpacity>
           ))}
@@ -118,11 +121,19 @@ const styles = StyleSheet.create({
     borderColor: '#FFD700',
     backgroundColor: '#283593',
   },
+  abilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  abilityEmoji: {
+    fontSize: 22,
+    marginRight: 8,
+  },
   abilityName: {
     color: '#FFD700',
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
   },
   abilityDesc: {
     color: '#E3F2FD',
