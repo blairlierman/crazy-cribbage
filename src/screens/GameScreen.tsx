@@ -285,25 +285,6 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
       />
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Starter Card */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Starter</Text>
-          <View style={styles.row}>
-            {game.starter ? (
-              <CardView card={game.starter} />
-            ) : (
-              <View style={styles.starterPlaceholder}>
-                <Text style={styles.placeholderText}>?</Text>
-              </View>
-            )}
-            {game.luckyRerollAvailable && game.starter && (
-              <TouchableOpacity style={styles.smallBtn} onPress={() => setGame(rerollStarter)}>
-                <Text style={styles.smallBtnText}>🎲 Reroll</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
         {/* AI Hand + Crib (crib to the right on wide screens) */}
         <View style={wideLayout ? styles.handAndCribRow : undefined}>
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
@@ -378,14 +359,42 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
           </View>
         )}
 
-        {/* Pegging Log */}
-        {game.peggingLog.length > 0 && (
-          <View style={styles.logBox}>
-            {game.peggingLog.slice(-5).map((line, i) => (
-              <Text key={i} style={styles.logLine}>
-                {line}
-              </Text>
-            ))}
+        {/* Pegging Log + Starter Card */}
+        {(game.peggingLog.length > 0 || game.starter) && (
+          <View style={styles.historyRow}>
+            {game.peggingLog.length > 0 && (
+              <View style={[styles.logBox, styles.logBoxFlex]}>
+                {game.peggingLog.slice(-5).map((line, i) => (
+                  <Text key={i} style={styles.logLine}>
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {(game.starter || (game.luckyRerollAvailable && game.starter)) && (
+              <View style={styles.starterPanel}>
+                <Text style={styles.sectionLabel}>Starter</Text>
+                <View style={styles.starterInlineRow}>
+                  {game.starter ? (
+                    <CardView card={game.starter} small />
+                  ) : (
+                    <View style={styles.starterPlaceholder}>
+                      <Text style={styles.placeholderText}>?</Text>
+                    </View>
+                  )}
+
+                  {game.luckyRerollAvailable && game.starter && (
+                    <TouchableOpacity
+                      style={styles.smallBtn}
+                      onPress={() => setGame(rerollStarter)}
+                    >
+                      <Text style={styles.smallBtnText}>🎲</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -573,15 +582,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   starterPlaceholder: {
-    width: 60,
-    height: 85,
-    borderRadius: 8,
+    width: 44,
+    height: 62,
+    borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 4,
+    margin: 2,
   },
   placeholderText: {
     color: 'rgba(255,255,255,0.5)',
@@ -592,15 +601,36 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
   logBox: {
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 8,
     padding: 8,
-    marginBottom: 12,
+  },
+  logBoxFlex: {
+    flex: 1,
   },
   logLine: {
     color: '#C8E6C9',
     fontSize: 12,
+  },
+  starterPanel: {
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starterInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: {
     flexDirection: 'row',
