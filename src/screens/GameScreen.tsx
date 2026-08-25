@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,7 +10,7 @@ import {
 import { aiChooseDiscards, aiChoosePeggingCard } from '../ai/aiLogic';
 import CardView from '../components/CardView';
 import ScoreBoard from '../components/ScoreBoard';
-import { Card, cardValue } from '../game/cards';
+import { Card, cardValue, sortCards } from '../game/cards';
 import {
   GameState,
   awardGo,
@@ -46,9 +46,18 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('suit');
   const aiThinkingRef = useRef(false);
 
   const discardCount = hasAbility(abilities, 'extra_discard') ? 3 : 2;
+  const sortedPlayerHand = useMemo(
+    () =>
+      sortCards(
+        game.phase === 'pegging' ? game.pegging.playerCards : game.player.hand,
+        handSortOrder,
+      ),
+    [game.phase, game.pegging.playerCards, game.player.hand, handSortOrder],
+  );
 
   // ─── Deal a fresh hand ───────────────────────────────────────────────
   const deal = useCallback(() => {
@@ -285,25 +294,6 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
       />
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Starter Card */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Starter</Text>
-          <View style={styles.row}>
-            {game.starter ? (
-              <CardView card={game.starter} />
-            ) : (
-              <View style={styles.starterPlaceholder}>
-                <Text style={styles.placeholderText}>?</Text>
-              </View>
-            )}
-            {game.luckyRerollAvailable && game.starter && (
-              <TouchableOpacity style={styles.smallBtn} onPress={() => setGame(rerollStarter)}>
-                <Text style={styles.smallBtnText}>🎲 Reroll</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
         {/* AI Hand + Crib (crib to the right on wide screens) */}
         <View style={wideLayout ? styles.handAndCribRow : undefined}>
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
@@ -378,31 +368,77 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
           </View>
         )}
 
-        {/* Pegging Log */}
-        {game.peggingLog.length > 0 && (
-          <View style={styles.logBox}>
-            {game.peggingLog.slice(-5).map((line, i) => (
-              <Text key={i} style={styles.logLine}>
-                {line}
-              </Text>
-            ))}
+        {/* Pegging Log + Starter Card */}
+        {(game.peggingLog.length > 0 || game.starter) && (
+          <View style={styles.historyRow}>
+            {game.peggingLog.length > 0 && (
+              <View style={[styles.logBox, styles.logBoxFlex]}>
+                {game.peggingLog.slice(-5).map((line, i) => (
+                  <Text key={i} style={styles.logLine}>
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {(game.starter || (game.luckyRerollAvailable && game.starter)) && (
+              <View style={styles.starterPanel}>
+                <Text style={styles.sectionLabel}>Starter</Text>
+                <View style={styles.starterInlineRow}>
+                  {game.starter ? (
+                    <CardView card={game.starter} small />
+                  ) : (
+                    <View style={styles.starterPlaceholder}>
+                      <Text style={styles.placeholderText}>?</Text>
+                    </View>
+                  )}
+
+                  {game.luckyRerollAvailable && game.starter && (
+                    <TouchableOpacity
+                      style={styles.smallBtn}
+                      onPress={() => setGame(rerollStarter)}
+                    >
+                      <Text style={styles.smallBtnText}>🎲</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         )}
 
         {/* Player Hand + Crib (crib to the right on wide screens) */}
         <View style={wideLayout ? styles.handAndCribRow : undefined}>
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
-            <Text style={styles.sectionLabel}>
-              {game.phase === 'discard' || game.phase === 'peek_starter'
-                ? `Your Hand 👤 — Select ${discardCount} to discard`
-                : game.phase === 'swap'
-                  ? 'Your Hand 👤 — Select a card to swap (or skip)'
-                  : game.phase === 'pegging'
-                    ? `Your Hand 👤 — Count: ${game.pegging.count}`
-                    : 'Your Hand 👤'}
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionLabel}>
+                {game.phase === 'discard' || game.phase === 'peek_starter'
+                  ? `Your Hand 👤 — Select ${discardCount} to discard`
+                  : game.phase === 'swap'
+                    ? 'Your Hand 👤 — Select a card to swap (or skip)'
+                    : game.phase === 'pegging'
+                      ? `Your Hand 👤 — Count: ${game.pegging.count}`
+                      : 'Your Hand 👤'}
+              </Text>
+              <View style={styles.titleWithToggle}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    handSortOrder === 'suit'
+                      ? 'Sort hands by suit first'
+                      : 'Sort hands by rank first'
+                  }
+                  style={styles.sortToggle}
+                  onPress={() => setHandSortOrder((prev) => (prev === 'suit' ? 'rank' : 'suit'))}
+                >
+                  <Text style={styles.sortToggleText}>
+                    {handSortOrder === 'suit' ? '♠️' : '🔢'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <View style={styles.row}>
-              {(game.phase === 'pegging' ? game.pegging.playerCards : game.player.hand).map((c) => {
+              {sortedPlayerHand.map((c) => {
                 const isSelected = selectedCards.includes(c.id);
                 const isSwapSelected = swapSelected === c.id;
 
@@ -559,13 +595,38 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 12,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  titleWithToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   sectionLabel: {
     color: '#A5D6A7',
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 4,
     fontWeight: '600',
+    flexShrink: 1,
+  },
+  sortToggle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  sortToggleText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   row: {
     flexDirection: 'row',
@@ -573,15 +634,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   starterPlaceholder: {
-    width: 60,
-    height: 85,
-    borderRadius: 8,
+    width: 44,
+    height: 62,
+    borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 4,
+    margin: 2,
   },
   placeholderText: {
     color: 'rgba(255,255,255,0.5)',
@@ -592,15 +653,36 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
   logBox: {
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 8,
     padding: 8,
-    marginBottom: 12,
+  },
+  logBoxFlex: {
+    flex: 1,
   },
   logLine: {
     color: '#C8E6C9',
     fontSize: 12,
+  },
+  starterPanel: {
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starterInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: {
     flexDirection: 'row',
