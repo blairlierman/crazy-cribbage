@@ -1,9 +1,9 @@
 import { UnlockedAbilities, AbilityId } from '../game/abilities';
-
-export const ROUND_TARGETS = [31, 61, 91, 121] as const;
-export type RoundTarget = (typeof ROUND_TARGETS)[number];
+import { BoardId } from '../game/boards';
+import { GameMode, RoundConfig, getModeConfig } from '../game/modes';
 
 export interface RunState {
+  mode: GameMode;
   currentRoundIndex: number; // 0-3
   abilities: UnlockedAbilities;
   roundResults: RoundResult[];
@@ -12,15 +12,21 @@ export interface RunState {
 }
 
 export interface RoundResult {
+  mode: GameMode;
   roundIndex: number;
-  targetScore: RoundTarget;
+  targetScore: number;
   playerWon: boolean;
   playerFinalScore: number;
-  aiFinalScore: number;
+  opponentFinalScore: number;
+  boardId: BoardId | null;
+  handsUsed: number | null;
+  handsLimit: number | null;
+  boardProgress: number | null;
 }
 
-export function createInitialRunState(): RunState {
+export function createInitialRunState(mode: GameMode = 'classic'): RunState {
   return {
+    mode,
     currentRoundIndex: 0,
     abilities: {},
     roundResults: [],
@@ -29,8 +35,9 @@ export function createInitialRunState(): RunState {
   };
 }
 
-export function currentTarget(run: RunState): RoundTarget {
-  return ROUND_TARGETS[run.currentRoundIndex];
+export function currentRound(run: RunState): RoundConfig {
+  const rounds = getModeConfig(run.mode).rounds;
+  return rounds[Math.min(run.currentRoundIndex, rounds.length - 1)];
 }
 
 export function advanceRound(
@@ -57,8 +64,9 @@ export function advanceRound(
   }
 
   const nextRoundIndex = run.currentRoundIndex + 1;
+  const rounds = getModeConfig(run.mode).rounds;
 
-  if (nextRoundIndex >= ROUND_TARGETS.length) {
+  if (nextRoundIndex >= rounds.length) {
     // Player won all rounds
     return {
       ...run,
