@@ -428,7 +428,7 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
   scoreSeatHand(nonDealer);
   scoreSeatHand(dealer);
 
-  const baseCrib = scoreHand(state.crib.slice(0, 4), state.starter, true);
+  const baseCrib = scoreHand(state.crib, state.starter, true);
   crib = applyBonuses(baseCrib);
   cribBreakdown = baseCrib.breakdown.map((item) => item.description);
   if (dealer === 'top') topScore += crib;

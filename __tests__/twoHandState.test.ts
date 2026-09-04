@@ -133,4 +133,23 @@ describe('two hand state', () => {
     expect(after.board.totalProgress).toBeGreaterThan(0);
     expect(after.phase).toBe('round_over');
   });
+
+  it('scores all cards in an expanded crib', () => {
+    const state = makeState({
+      phase: 'show',
+      starter: makeCard('9', 'diamonds'),
+      crib: [
+        makeCard('A'),
+        makeCard('A', 'clubs'),
+        makeCard('2'),
+        makeCard('2', 'clubs'),
+        makeCard('A', 'diamonds'),
+      ],
+    });
+
+    const after = scoreTwoHandShow(state);
+
+    expect(after.handResult?.crib).toBe(14);
+    expect(after.handResult?.cribBreakdown).toContain('Pairs (8 pts)');
+  });
 });
