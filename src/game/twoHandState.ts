@@ -341,9 +341,9 @@ export function playPeggingCard(
 
 export function passPegging(state: TwoHandGameState, seat: TwoHandSeat): TwoHandGameState {
   if (seat === 'top') {
-    return { ...state, pegging: { ...state.pegging, topPassed: true } };
+    return { ...state, pegging: { ...state.pegging, topPassed: true, lastToPlay: 'top' } };
   }
-  return { ...state, pegging: { ...state.pegging, bottomPassed: true } };
+  return { ...state, pegging: { ...state.pegging, bottomPassed: true, lastToPlay: 'bottom' } };
 }
 
 export function awardGoTwoHands(state: TwoHandGameState, seat: TwoHandSeat): TwoHandGameState {

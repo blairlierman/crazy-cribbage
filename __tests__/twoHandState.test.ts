@@ -5,6 +5,7 @@ import {
   dealTwoHands,
   discardForSeat,
   getActivePeggingSeat,
+  passPegging,
   playPeggingCard,
   resetTwoHandPegging,
   scoreTwoHandShow,
@@ -83,6 +84,32 @@ describe('two hand state', () => {
     const afterBottom = playPeggingCard(state, 'bottom', makeCard('6', 'clubs'));
     expect(afterBottom.pegging.lastToPlay).toBe('bottom');
     expect(getActivePeggingSeat(afterBottom)).toBe('top');
+  });
+
+  it('switches to the other hand after a go pass', () => {
+    const state = makeState({
+      phase: 'pegging',
+      pegging: {
+        pile: [makeCard('10', 'hearts'), makeCard('10', 'clubs')],
+        playedCards: [
+          { card: makeCard('10', 'hearts'), playedBy: 'top' },
+          { card: makeCard('10', 'clubs'), playedBy: 'bottom' },
+        ],
+        count: 20,
+        topPassed: false,
+        bottomPassed: false,
+        topCards: [makeCard('K', 'spades')],
+        bottomCards: [makeCard('A', 'clubs')],
+        lastToPlay: 'bottom',
+        pileResetCount: 0,
+      },
+    });
+
+    const afterPass = passPegging(state, 'top');
+
+    expect(afterPass.pegging.topPassed).toBe(true);
+    expect(afterPass.pegging.lastToPlay).toBe('top');
+    expect(getActivePeggingSeat(afterPass)).toBe('bottom');
   });
 
   it('moves the combined board during pegging scores', () => {

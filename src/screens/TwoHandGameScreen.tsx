@@ -245,29 +245,47 @@ export default function TwoHandGameScreen({
     const isSwapSeat = game.swapSeat === seat;
     const isActiveSeat = activePeggingSeat === seat;
     const isDealer = game.dealer === seat;
+    const seatPassed = seat === 'top' ? game.pegging.topPassed : game.pegging.bottomPassed;
+    const seatCanPass =
+      game.phase === 'pegging' &&
+      game.winner === null &&
+      isActiveSeat &&
+      !canSeatPlay(game, seat) &&
+      cards.length > 0;
 
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionLabel}>
-            {title} {isDealer ? '👑' : ''}
-            {game.phase === 'discard' || game.phase === 'peek_starter'
-              ? isDiscardSeat
-                ? ` — discard ${discardCount}`
-                : ' — waiting'
-              : game.phase === 'swap'
-                ? isSwapSeat
-                  ? ' — swap or skip'
-                  : ' — ready'
-                : game.phase === 'pegging'
-                  ? isActiveSeat
-                    ? ` — your turn (${game.pegging.count})`
-                    : ' — waiting'
-                  : ''}
-          </Text>
-          <TouchableOpacity style={styles.sortToggle} onPress={toggleSortOrder}>
-            <Text style={styles.sortToggleText}>{handSortOrder === 'suit' ? '♠️' : '🔢'}</Text>
-          </TouchableOpacity>
+          <View style={styles.sectionHeaderMain}>
+            <Text style={styles.sectionLabel}>
+              {title} {isDealer ? '👑' : ''}
+              {game.phase === 'discard' || game.phase === 'peek_starter'
+                ? isDiscardSeat
+                  ? ` — discard ${discardCount}`
+                  : ' — waiting'
+                : game.phase === 'swap'
+                  ? isSwapSeat
+                    ? ' — swap or skip'
+                    : ' — ready'
+                  : game.phase === 'pegging'
+                    ? seatPassed
+                      ? ' — Go!'
+                      : isActiveSeat
+                        ? ` — your turn (${game.pegging.count})`
+                        : ' — waiting'
+                    : ''}
+            </Text>
+          </View>
+          <View style={styles.sectionControls}>
+            {seatCanPass && (
+              <TouchableOpacity style={styles.inlineGoBtn} onPress={handlePass}>
+                <Text style={styles.inlineGoBtnText}>Go!</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.sortToggle} onPress={toggleSortOrder}>
+              <Text style={styles.sortToggleText}>{handSortOrder === 'suit' ? '♠️' : '🔢'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.row}>
@@ -319,15 +337,6 @@ export default function TwoHandGameScreen({
       </View>
     );
   };
-
-  const canPass =
-    game.phase === 'pegging' &&
-    game.winner === null &&
-    !!activePeggingSeat &&
-    !canSeatPlay(game, activePeggingSeat) &&
-    (activePeggingSeat === 'top'
-      ? game.pegging.topCards.length > 0
-      : game.pegging.bottomCards.length > 0);
 
   const shouldShowBoard =
     boardAnimating ||
@@ -525,12 +534,6 @@ export default function TwoHandGameScreen({
               </TouchableOpacity>
             </>
           )}
-
-          {canPass && (
-            <TouchableOpacity style={[styles.btn, styles.btnSecondary]} onPress={handlePass}>
-              <Text style={styles.btnText}>Go!</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {(game.handResult || game.phase === 'round_over') && (
@@ -712,6 +715,14 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
+  sectionHeaderMain: {
+    flex: 1,
+  },
+  sectionControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionLabel: {
     color: '#A5D6A7',
     fontSize: 12,
@@ -737,6 +748,19 @@ const styles = StyleSheet.create({
   },
   sortToggleText: {
     fontSize: 12,
+  },
+  inlineGoBtn: {
+    backgroundColor: '#1565C0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineGoBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
   },
   middleRow: {
     flexDirection: 'row',
