@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MODE_CONFIGS, type GameMode } from '../game/modes';
 
 interface HomeScreenProps {
-  onStartRun: () => void;
+  onStartRun: (mode: GameMode) => void;
 }
 
 export default function HomeScreen({ onStartRun }: HomeScreenProps) {
@@ -12,22 +13,44 @@ export default function HomeScreen({ onStartRun }: HomeScreenProps) {
       <Text style={styles.title}>Crazy Cribbage</Text>
       <Text style={styles.subtitle}>Roguelike Edition</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>How to Play</Text>
-        <Text style={styles.cardText}>
-          Beat the AI through 4 rounds: first to <Text style={styles.highlight}>31</Text>, then{' '}
-          <Text style={styles.highlight}>61</Text>, then <Text style={styles.highlight}>91</Text>,
-          then <Text style={styles.highlight}>121</Text> points.
-        </Text>
-        <Text style={styles.cardText}>
-          Win each round to unlock a new <Text style={styles.highlight}>ability</Text> for future
-          rounds!
-        </Text>
-      </View>
+      <View style={styles.modes}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{MODE_CONFIGS.classic.name}</Text>
+          <Text style={styles.cardText}>
+            Beat the AI through 4 rounds: first to <Text style={styles.highlight}>31</Text>, then{' '}
+            <Text style={styles.highlight}>61</Text>, then <Text style={styles.highlight}>91</Text>,
+            then <Text style={styles.highlight}>121</Text>.
+          </Text>
+          <Text style={styles.cardText}>
+            Win each round to unlock a new <Text style={styles.highlight}>ability</Text>.
+          </Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => onStartRun('classic')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.buttonText}>Start Classic Run</Text>
+          </TouchableOpacity>
+        </View>
 
-      <TouchableOpacity style={styles.button} onPress={onStartRun} activeOpacity={0.85}>
-        <Text style={styles.buttonText}>Start New Run</Text>
-      </TouchableOpacity>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{MODE_CONFIGS.two_hands.name}</Text>
+          <Text style={styles.cardText}>
+            Play both hands yourself, discard to the crib from both sides, then peg them out in
+            alternating order.
+          </Text>
+          <Text style={styles.cardText}>
+            Clear escalating board targets before you run out of hands to earn permanent upgrades.
+          </Text>
+          <TouchableOpacity
+            style={[styles.button, styles.altButton]}
+            onPress={() => onStartRun('two_hands')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.buttonText}>Start Twin Hands Run</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
@@ -56,6 +79,10 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  modes: {
+    width: '100%',
+    gap: 16,
   },
   card: {
     backgroundColor: '#1a237e',
@@ -90,6 +117,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
+    marginTop: 12,
+  },
+  altButton: {
+    backgroundColor: '#1565C0',
   },
   buttonText: {
     color: '#fff',
