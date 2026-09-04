@@ -1,12 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import BoardView from '../components/BoardView';
 import CardView from '../components/CardView';
-import ScoreBoard from '../components/ScoreBoard';
-import { UnlockedAbilities, hasAbility } from '../game/abilities';
+import { ALL_ABILITIES, UnlockedAbilities, hasAbility } from '../game/abilities';
 import { BoardState } from '../game/boards';
 import { Card, cardValue, sortCards } from '../game/cards';
+import { GameMode, RoundConfig } from '../game/modes';
 import {
+  TwoHandGameState,
+  TwoHandSeat,
   awardGoTwoHands,
   canSeatPlay,
   createInitialTwoHandGameState,
@@ -21,10 +31,7 @@ import {
   resetTwoHandPegging,
   scoreTwoHandShow,
   swapForSeat,
-  TwoHandGameState,
-  TwoHandSeat,
 } from '../game/twoHandState';
-import { GameMode, RoundConfig } from '../game/modes';
 import { RoundResult } from '../store/runState';
 
 interface TwoHandGameScreenProps {
@@ -33,6 +40,11 @@ interface TwoHandGameScreenProps {
   round: RoundConfig;
   mode: GameMode;
   onRoundComplete: (result: RoundResult) => void;
+}
+
+interface AbilityTooltipState {
+  name: string;
+  description: string;
 }
 
 export default function TwoHandGameScreen({
@@ -55,12 +67,18 @@ export default function TwoHandGameScreen({
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
   const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('suit');
-  const [boardPreview, setBoardPreview] = useState<BoardState>(game.board);
+  const [boardPreview, setBoardPreview] = useState<BoardState>(() => cloneBoard(game.board));
   const [boardAnimating, setBoardAnimating] = useState(false);
+  const [boardSpotlight, setBoardSpotlight] = useState(false);
+  const [abilityTooltip, setAbilityTooltip] = useState<AbilityTooltipState | null>(null);
   const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const spotlightRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousBoardRef = useRef<BoardState>(cloneBoard(game.board));
 
   const discardCount = getDiscardCount(game);
   const activePeggingSeat = game.phase === 'pegging' ? getActivePeggingSeat(game) : null;
+  const combinedScore = game.top.score + game.bottom.score;
+  const handsLabel = `${game.handNumber}/${round.handsLimit}`;
   const topCards = useMemo(
     () =>
       sortCards(game.phase === 'pegging' ? game.pegging.topCards : game.top.hand, handSortOrder),
@@ -74,67 +92,81 @@ export default function TwoHandGameScreen({
       ),
     [game, handSortOrder],
   );
+  const abilityTokens = useMemo(
+    () =>
+      ALL_ABILITIES.flatMap((ability) =>
+        Array.from({ length: abilities[ability.id] ?? 0 }, (_, index) => ({
+          id: `${ability.id}-${index}`,
+          name: ability.name,
+          description: ability.description,
+          emoji: ability.emoji,
+        })),
+      ),
+    [abilities],
+  );
 
   useEffect(() => {
-    const handResult = game.handResult;
-    if (!handResult) return;
+    const previousBoard = previousBoardRef.current;
+    const boardChanged =
+      previousBoard.totalProgress !== game.board.totalProgress ||
+      previousBoard.peg.position !== game.board.peg.position ||
+      previousBoard.trailPosition !== game.board.trailPosition;
+
+    previousBoardRef.current = cloneBoard(game.board);
+
+    if (!boardChanged) {
+      setBoardPreview(cloneBoard(game.board));
+      return;
+    }
+
     if (animationRef.current) clearTimeout(animationRef.current);
+    if (spotlightRef.current) clearTimeout(spotlightRef.current);
 
-    const nextBoard: BoardState = {
-      ...handResult.boardBefore,
-      topPeg: { ...handResult.boardBefore.topPeg },
-      bottomPeg: { ...handResult.boardBefore.bottomPeg },
-      lastEffects: [],
-    };
-    setBoardPreview(nextBoard);
     setBoardAnimating(true);
+    setBoardSpotlight(true);
+    setBoardPreview(cloneBoard(previousBoard));
 
-    const targetTop = handResult.boardAfter.topPeg.position;
-    const targetBottom = handResult.boardAfter.bottomPeg.position;
-    let topPosition = handResult.boardBefore.topPeg.position;
-    let bottomPosition = handResult.boardBefore.bottomPeg.position;
+    let currentPosition = previousBoard.peg.position;
+    const targetPosition = game.board.peg.position;
 
     const step = () => {
-      if (topPosition < targetTop) {
-        topPosition += 1;
-        setBoardPreview((current) => ({
-          ...current,
-          topPeg: { ...current.topPeg, position: topPosition },
-          totalProgress: topPosition + bottomPosition,
-        }));
-        animationRef.current = setTimeout(step, 50);
+      if (currentPosition === targetPosition) {
+        setBoardPreview(cloneBoard(game.board));
+        setBoardAnimating(false);
+        spotlightRef.current = setTimeout(() => setBoardSpotlight(false), 1400);
         return;
       }
-      if (bottomPosition < targetBottom) {
-        bottomPosition += 1;
-        setBoardPreview((current) => ({
-          ...current,
-          bottomPeg: { ...current.bottomPeg, position: bottomPosition },
-          totalProgress: topPosition + bottomPosition,
-        }));
-        animationRef.current = setTimeout(step, 50);
-        return;
-      }
-      setBoardAnimating(false);
-      setBoardPreview({
-        ...handResult.boardAfter,
-        topPeg: { ...handResult.boardAfter.topPeg },
-        bottomPeg: { ...handResult.boardAfter.bottomPeg },
-      });
+
+      const nextPosition = currentPosition + Math.sign(targetPosition - currentPosition);
+      setBoardPreview((current) => ({
+        ...current,
+        trailPosition: currentPosition,
+        peg: { ...current.peg, position: nextPosition },
+        totalProgress: nextPosition,
+      }));
+      currentPosition = nextPosition;
+      animationRef.current = setTimeout(step, 60);
     };
 
-    animationRef.current = setTimeout(step, 150);
+    animationRef.current = setTimeout(step, 120);
 
     return () => {
       if (animationRef.current) clearTimeout(animationRef.current);
     };
-  }, [game.handResult]);
+  }, [game.board]);
 
   useEffect(() => {
-    if (game.phase !== 'pegging' || !isTwoHandPeggingComplete(game)) return;
+    if (game.phase !== 'pegging' || game.winner !== null || !isTwoHandPeggingComplete(game)) return;
     const withLastCard = awardGoTwoHands(game, game.pegging.lastToPlay ?? 'top');
-    setGame(scoreTwoHandShow(withLastCard));
+    setGame(withLastCard.phase === 'round_over' ? withLastCard : scoreTwoHandShow(withLastCard));
   }, [game]);
+
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) clearTimeout(animationRef.current);
+      if (spotlightRef.current) clearTimeout(spotlightRef.current);
+    };
+  }, []);
 
   const toggleSelectCard = (cardId: string) => {
     setSelectedCards((prev) => {
@@ -144,11 +176,14 @@ export default function TwoHandGameScreen({
     });
   };
 
+  const toggleSortOrder = () => {
+    setHandSortOrder((prev) => (prev === 'suit' ? 'rank' : 'suit'));
+  };
+
   const deal = () => {
     setGame((current) => dealTwoHands(current));
     setSelectedCards([]);
     setSwapSelected(null);
-    setBoardPreview((current) => current);
   };
 
   const confirmDiscard = () => {
@@ -168,13 +203,13 @@ export default function TwoHandGameScreen({
   };
 
   const playCard = (seat: TwoHandSeat, card: Card) => {
-    if (game.phase !== 'pegging' || activePeggingSeat !== seat) return;
+    if (game.phase !== 'pegging' || game.winner !== null || activePeggingSeat !== seat) return;
     if (cardValue(card) + game.pegging.count > 31) return;
     setGame((current) => playPeggingCard(current, seat, card));
   };
 
   const handlePass = () => {
-    if (game.phase !== 'pegging' || !activePeggingSeat) return;
+    if (game.phase !== 'pegging' || game.winner !== null || !activePeggingSeat) return;
     setGame((current) => {
       const otherSeat: TwoHandSeat = activePeggingSeat === 'top' ? 'bottom' : 'top';
       if (!canSeatPlay(current, otherSeat)) {
@@ -201,38 +236,36 @@ export default function TwoHandGameScreen({
       });
       return;
     }
+
     deal();
   };
 
   const renderSeat = (seat: TwoHandSeat, title: string, cards: Card[]) => {
-    const isDiscardSeat = game.phase !== 'pegging' && game.discardSeat === seat;
-    const isSwapSeat = game.phase === 'swap' && game.swapSeat === seat;
-    const isActivePeggingSeat = activePeggingSeat === seat;
+    const isDiscardSeat = game.discardSeat === seat;
+    const isSwapSeat = game.swapSeat === seat;
+    const isActiveSeat = activePeggingSeat === seat;
     const isDealer = game.dealer === seat;
 
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionLabel}>
-            {title} {isDealer ? '👑' : ''}{' '}
+            {title} {isDealer ? '👑' : ''}
             {game.phase === 'discard' || game.phase === 'peek_starter'
               ? isDiscardSeat
-                ? `— discard ${discardCount}`
-                : '— waiting'
+                ? ` — discard ${discardCount}`
+                : ' — waiting'
               : game.phase === 'swap'
                 ? isSwapSeat
-                  ? '— swap or skip'
-                  : '— ready'
+                  ? ' — swap or skip'
+                  : ' — ready'
                 : game.phase === 'pegging'
-                  ? isActivePeggingSeat
-                    ? `— your turn (${game.pegging.count})`
-                    : '— waiting'
-                  : `— ${game[seat].score} pts`}
+                  ? isActiveSeat
+                    ? ` — your turn (${game.pegging.count})`
+                    : ' — waiting'
+                  : ''}
           </Text>
-          <TouchableOpacity
-            style={styles.sortToggle}
-            onPress={() => setHandSortOrder((prev) => (prev === 'suit' ? 'rank' : 'suit'))}
-          >
+          <TouchableOpacity style={styles.sortToggle} onPress={toggleSortOrder}>
             <Text style={styles.sortToggleText}>{handSortOrder === 'suit' ? '♠️' : '🔢'}</Text>
           </TouchableOpacity>
         </View>
@@ -270,6 +303,7 @@ export default function TwoHandGameScreen({
             />
           ))}
         </View>
+
         {game.handResult &&
         (game.phase === 'show' || game.phase === 'round_over') &&
         (seat === 'top'
@@ -288,67 +322,155 @@ export default function TwoHandGameScreen({
 
   const canPass =
     game.phase === 'pegging' &&
+    game.winner === null &&
     !!activePeggingSeat &&
     !canSeatPlay(game, activePeggingSeat) &&
     (activePeggingSeat === 'top'
       ? game.pegging.topCards.length > 0
       : game.pegging.bottomCards.length > 0);
 
+  const shouldShowBoard =
+    boardAnimating ||
+    boardSpotlight ||
+    game.phase === 'discard' ||
+    game.phase === 'peek_starter' ||
+    game.phase === 'swap' ||
+    game.phase === 'show' ||
+    game.phase === 'round_over';
+
+  const displayedBoard = boardAnimating ? boardPreview : game.board;
+
   return (
     <View style={styles.container}>
-      <ScoreBoard
-        playerScore={game.top.score}
-        aiScore={game.bottom.score}
-        targetScore={round.targetScore}
-        roundIndex={roundIndex}
-        abilities={abilities}
-        leftLabel="Top Hand"
-        rightLabel="Bottom Hand"
-        modeLabel="Twin Hands"
-        subLabel={`${game.board.totalProgress}/${round.targetScore} board progress • Hand ${game.handNumber}/${round.handsLimit}`}
-      />
+      <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <View style={styles.handsBadge}>
+            <Text style={styles.handsBadgeLabel}>Hands</Text>
+            <Text style={styles.handsBadgeValue}>{handsLabel}</Text>
+          </View>
+
+          <View style={styles.headerCenter}>
+            <Text
+              style={styles.roundLabel}
+            >{`Twin Hands • Round ${roundIndex + 1} (to ${round.targetScore})`}</Text>
+            <Text style={styles.subLabel}>
+              {game.board.totalProgress}/{round.targetScore} board progress
+            </Text>
+          </View>
+
+          <View style={styles.scoreBadge}>
+            <Text style={styles.scoreBadgeLabel}>Combined</Text>
+            <Text style={styles.scoreBadgeValue}>{combinedScore}</Text>
+          </View>
+        </View>
+
+        <View style={styles.progressRow}>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${Math.min(100, (combinedScore / round.targetScore) * 100)}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressTarget}>/ {round.targetScore}</Text>
+        </View>
+
+        {abilityTokens.length > 0 && (
+          <View style={styles.abilityRow}>
+            {abilityTokens.map((token) => (
+              <TouchableOpacity
+                key={token.id}
+                style={styles.abilityToken}
+                onPress={() =>
+                  setAbilityTooltip({ name: token.name, description: token.description })
+                }
+                onLongPress={() =>
+                  setAbilityTooltip({ name: token.name, description: token.description })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`${token.name}: ${token.description}`}
+                accessibilityHint="Tap or long press to view ability description"
+              >
+                <Text style={styles.abilityEmoji}>{token.emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>{game.handResult ? 'Board Progress' : 'Round Goal'}</Text>
-          <Text style={styles.infoText}>
-            Clear {round.targetScore} total progress on the {round.boardId?.replace(/_/g, ' ')}{' '}
-            board within {round.handsLimit} hand{round.handsLimit === 1 ? '' : 's'}.
-          </Text>
-        </View>
+        {shouldShowBoard && (
+          <View style={styles.boardWrapper}>
+            <BoardView board={displayedBoard} targetScore={round.targetScore} />
+          </View>
+        )}
 
         {renderSeat('top', 'Top Hand 🔵', topCards)}
 
-        {(game.peggingLog.length > 0 || game.starter) && (
-          <View style={styles.historyRow}>
-            {game.peggingLog.length > 0 && (
-              <View style={[styles.logBox, styles.logBoxFlex]}>
-                {game.peggingLog.slice(-6).map((line, index) => (
-                  <Text key={index} style={styles.logLine}>
-                    {line}
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            {game.starter && (
-              <View style={styles.starterPanel}>
-                <Text style={styles.sectionLabel}>Starter</Text>
-                <View style={styles.starterInlineRow}>
-                  <CardView card={game.starter} small />
-                  {game.luckyRerollAvailable && hasAbility(abilities, 'lucky_cut') && (
-                    <TouchableOpacity
-                      style={styles.smallBtn}
-                      onPress={() => setGame((current) => rerollTwoHandStarter(current))}
-                    >
-                      <Text style={styles.smallBtnText}>🎲</Text>
-                    </TouchableOpacity>
-                  )}
+        <View style={styles.middleRow}>
+          <View style={styles.starterPanel}>
+            <Text style={styles.sectionLabel}>Starter</Text>
+            <View style={styles.starterInlineRow}>
+              {game.starter ? (
+                <CardView card={game.starter} small />
+              ) : (
+                <View style={styles.starterPlaceholder}>
+                  <Text style={styles.placeholderText}>?</Text>
                 </View>
-              </View>
+              )}
+              {game.luckyRerollAvailable && game.starter && hasAbility(abilities, 'lucky_cut') && (
+                <TouchableOpacity
+                  style={styles.smallBtn}
+                  onPress={() => setGame((current) => rerollTwoHandStarter(current))}
+                >
+                  <Text style={styles.smallBtnText}>🎲</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.cribPanel}>
+            <Text style={styles.sectionLabel}>
+              Crib {game.dealer === 'top' ? '(Top owns it)' : '(Bottom owns it)'}
+            </Text>
+            <View style={styles.row}>
+              {game.crib.length === 0 ? (
+                <Text style={styles.emptyPanelText}>Empty</Text>
+              ) : (
+                game.crib.map((card) => (
+                  <CardView
+                    key={`crib-${card.id}`}
+                    card={card}
+                    small
+                    faceDown={
+                      game.phase === 'discard' ||
+                      game.phase === 'peek_starter' ||
+                      game.phase === 'swap' ||
+                      game.phase === 'pegging'
+                    }
+                  />
+                ))
+              )}
+            </View>
+            {game.handResult?.cribBreakdown.length ? (
+              <Text style={styles.handBreakdown}>{game.handResult.cribBreakdown.join(', ')}</Text>
+            ) : null}
+          </View>
+
+          <View style={[styles.logBox, styles.logBoxFlex]}>
+            <Text style={styles.sectionLabel}>History</Text>
+            {game.peggingLog.length === 0 ? (
+              <Text style={styles.emptyPanelText}>No scoring yet.</Text>
+            ) : (
+              game.peggingLog.slice(-6).map((line, index) => (
+                <Text key={index} style={styles.logLine}>
+                  {line}
+                </Text>
+              ))
             )}
           </View>
-        )}
+        </View>
 
         {game.phase === 'pegging' && (
           <View style={styles.section}>
@@ -360,8 +482,8 @@ export default function TwoHandGameScreen({
               {game.pegging.pile.length === 0 ? (
                 <Text style={styles.placeholderText}>Empty</Text>
               ) : (
-                game.pegging.pile.map((card) => (
-                  <CardView key={`pile-${card.id}-${game.pegging.count}`} card={card} small />
+                game.pegging.pile.map((card, index) => (
+                  <CardView key={`pile-${card.id}-${index}`} card={card} small />
                 ))
               )}
             </View>
@@ -369,30 +491,6 @@ export default function TwoHandGameScreen({
         )}
 
         {renderSeat('bottom', 'Bottom Hand 🟡', bottomCards)}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            Crib {game.dealer === 'top' ? '(Top owns it)' : '(Bottom owns it)'}
-          </Text>
-          <View style={styles.row}>
-            {game.crib.map((card) => (
-              <CardView
-                key={`crib-${card.id}`}
-                card={card}
-                small
-                faceDown={
-                  game.phase === 'discard' ||
-                  game.phase === 'peek_starter' ||
-                  game.phase === 'swap' ||
-                  game.phase === 'pegging'
-                }
-              />
-            ))}
-          </View>
-          {game.handResult?.cribBreakdown.length ? (
-            <Text style={styles.handBreakdown}>{game.handResult.cribBreakdown.join(', ')}</Text>
-          ) : null}
-        </View>
 
         <View style={styles.actions}>
           {(game.phase === 'discard' || game.phase === 'peek_starter') && (
@@ -435,43 +533,63 @@ export default function TwoHandGameScreen({
           )}
         </View>
 
-        {game.handResult && (
+        {(game.handResult || game.phase === 'round_over') && (
           <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>
-              {boardAnimating ? 'Scoring Board...' : 'Hand Results'}
-            </Text>
-            <BoardView
-              board={boardAnimating ? boardPreview : game.handResult.boardAfter}
-              targetScore={round.targetScore}
-            />
-            {!boardAnimating && (
+            <Text style={styles.resultTitle}>Hand Results</Text>
+            {game.handResult ? (
               <>
-                <Text style={styles.resultLine}>Top hand: +{game.handResult.topTotal} pts</Text>
+                <Text style={styles.resultLine}>Top hand: +{game.handResult.topHand} pts</Text>
                 <Text style={styles.resultLine}>
-                  Bottom hand: +{game.handResult.bottomTotal} pts
+                  Bottom hand: +{game.handResult.bottomHand} pts
                 </Text>
+                <Text style={styles.resultLine}>Crib: +{game.handResult.crib} pts</Text>
                 <Text style={styles.resultLine}>
-                  Combined hand progress: +{game.handResult.combinedTotal}
+                  Combined this hand: +{game.handResult.combinedTotal} pts
                 </Text>
-                {game.phase === 'round_over' && (
-                  <Text style={[styles.winnerText, game.winner ? styles.playerWon : styles.aiWon]}>
-                    {game.winner
-                      ? '🎉 Round cleared!'
-                      : `💀 Out of hands. Finished at ${game.board.totalProgress}/${round.targetScore}.`}
-                  </Text>
-                )}
-                <TouchableOpacity style={styles.btn} onPress={handleNext}>
-                  <Text style={styles.btnText}>
-                    {game.phase === 'round_over' ? 'Continue →' : 'Next Hand →'}
-                  </Text>
-                </TouchableOpacity>
               </>
+            ) : (
+              <Text style={styles.resultLine}>
+                The round ended during pegging at {game.board.totalProgress}/{round.targetScore}.
+              </Text>
             )}
+
+            {game.phase === 'round_over' && (
+              <Text style={[styles.winnerText, game.winner ? styles.playerWon : styles.aiWon]}>
+                {game.winner
+                  ? '🎉 Round cleared!'
+                  : `💀 Out of hands. Finished at ${game.board.totalProgress}/${round.targetScore}.`}
+              </Text>
+            )}
+
+            <TouchableOpacity style={styles.btn} onPress={handleNext}>
+              <Text style={styles.btnText}>
+                {game.phase === 'round_over' ? 'Continue →' : 'Next Hand →'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
+
+      {abilityTooltip && (
+        <Modal transparent animationType="fade" onRequestClose={() => setAbilityTooltip(null)}>
+          <Pressable style={styles.tooltipOverlay} onPress={() => setAbilityTooltip(null)}>
+            <View style={styles.tooltipBox}>
+              <Text style={styles.tooltipName}>{abilityTooltip.name}</Text>
+              <Text style={styles.tooltipDesc}>{abilityTooltip.description}</Text>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
     </View>
   );
+}
+
+function cloneBoard(board: BoardState): BoardState {
+  return {
+    ...board,
+    peg: { ...board.peg },
+    lastEffects: [...board.lastEffects],
+  };
 }
 
 const styles = StyleSheet.create({
@@ -479,27 +597,110 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1B5E20',
   },
+  header: {
+    backgroundColor: '#1a237e',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  handsBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 88,
+  },
+  handsBadgeLabel: {
+    color: '#90CAF9',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  handsBadgeValue: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  roundLabel: {
+    color: '#90CAF9',
+    fontSize: 12,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  subLabel: {
+    color: '#E3F2FD',
+    fontSize: 12,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  scoreBadge: {
+    alignItems: 'flex-end',
+    minWidth: 88,
+  },
+  scoreBadgeLabel: {
+    color: '#90CAF9',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  scoreBadgeValue: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '800',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#4CAF50',
+  },
+  progressTarget: {
+    color: '#90CAF9',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  abilityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 8,
+  },
+  abilityToken: {
+    padding: 4,
+  },
+  abilityEmoji: {
+    fontSize: 20,
+  },
   scroll: {
     padding: 12,
     paddingBottom: 40,
     gap: 12,
   },
-  infoCard: {
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 10,
-    padding: 12,
+  boardWrapper: {
     marginBottom: 12,
-  },
-  infoTitle: {
-    color: '#FFD700',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  infoText: {
-    color: '#E8F5E9',
-    fontSize: 13,
-    lineHeight: 18,
   },
   section: {
     marginBottom: 12,
@@ -537,35 +738,64 @@ const styles = StyleSheet.create({
   sortToggleText: {
     fontSize: 12,
   },
-  historyRow: {
+  middleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    alignItems: 'stretch',
     gap: 12,
     marginBottom: 12,
   },
-  logBox: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 8,
-    padding: 8,
-  },
-  logBoxFlex: {
-    flex: 1,
-  },
-  logLine: {
-    color: '#C8E6C9',
-    fontSize: 12,
-  },
   starterPanel: {
-    backgroundColor: 'rgba(0,0,0,0.12)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minWidth: 120,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  cribPanel: {
+    minWidth: 190,
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    borderRadius: 10,
+    padding: 10,
   },
   starterInlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
+  },
+  starterPlaceholder: {
+    width: 44,
+    height: 62,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 2,
+  },
+  placeholderText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 24,
+  },
+  emptyPanelText: {
+    color: '#E8F5E9',
+    fontSize: 13,
+    marginTop: 6,
+  },
+  logBox: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  logBoxFlex: {
+    flex: 1,
+    minWidth: 220,
+  },
+  logLine: {
+    color: '#C8E6C9',
+    fontSize: 12,
+    marginTop: 4,
   },
   smallBtn: {
     backgroundColor: '#F57F17',
@@ -578,10 +808,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
-  },
-  placeholderText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 24,
   },
   actions: {
     flexDirection: 'row',
@@ -613,7 +839,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
-    gap: 8,
+    gap: 6,
   },
   resultTitle: {
     color: '#FFD700',
@@ -641,5 +867,30 @@ const styles = StyleSheet.create({
   },
   aiWon: {
     color: '#EF5350',
+  },
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tooltipBox: {
+    backgroundColor: '#1a237e',
+    borderRadius: 10,
+    padding: 16,
+    marginHorizontal: 32,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+    maxWidth: 320,
+  },
+  tooltipName: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  tooltipDesc: {
+    color: '#E3F2FD',
+    fontSize: 14,
   },
 });

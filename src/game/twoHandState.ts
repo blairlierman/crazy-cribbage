@@ -238,6 +238,7 @@ function proceedToPegging(state: TwoHandGameState): TwoHandGameState {
   let topScore = state.top.score;
   let bottomScore = state.bottom.score;
   const log: string[] = [];
+  let board = state.board;
 
   if (starter.rank === 'J') {
     if (state.dealer === 'top') {
@@ -247,6 +248,7 @@ function proceedToPegging(state: TwoHandGameState): TwoHandGameState {
       bottomScore += 2;
       log.push('His heels! Bottom hand gets 2 pts');
     }
+    board = applyBoardScore(state.board, 2).board;
   }
 
   return {
@@ -256,6 +258,7 @@ function proceedToPegging(state: TwoHandGameState): TwoHandGameState {
     phase: 'pegging',
     top: { ...state.top, score: topScore },
     bottom: { ...state.bottom, score: bottomScore },
+    board,
     pegging: {
       ...createPeggingState(state.dealer),
       topCards: [...state.top.hand],
@@ -297,6 +300,7 @@ export function playPeggingCard(
   let bottomScore = state.bottom.score;
   if (seat === 'top') topScore += score.total;
   else bottomScore += score.total;
+  const board = score.total > 0 ? applyBoardScore(state.board, score.total).board : state.board;
 
   let newPegging: TwoHandPeggingState = {
     ...pegging,
@@ -327,8 +331,11 @@ export function playPeggingCard(
     ...state,
     top: { ...state.top, score: topScore },
     bottom: { ...state.bottom, score: bottomScore },
+    board,
     pegging: newPegging,
     peggingLog: log,
+    winner: board.totalProgress >= state.targetScore ? true : state.winner,
+    phase: board.totalProgress >= state.targetScore ? 'round_over' : state.phase,
   };
 }
 
@@ -342,13 +349,24 @@ export function passPegging(state: TwoHandGameState, seat: TwoHandSeat): TwoHand
 export function awardGoTwoHands(state: TwoHandGameState, seat: TwoHandSeat): TwoHandGameState {
   const pts = 1 + (hasAbility(state.abilities, 'go_bonus') ? 1 : 0);
   const log = [...state.peggingLog, `${seat === 'top' ? 'Top' : 'Bottom'} gets go (+${pts})`];
+  const board = applyBoardScore(state.board, pts).board;
   if (seat === 'top') {
-    return { ...state, top: { ...state.top, score: state.top.score + pts }, peggingLog: log };
+    return {
+      ...state,
+      top: { ...state.top, score: state.top.score + pts },
+      peggingLog: log,
+      board,
+      winner: board.totalProgress >= state.targetScore ? true : state.winner,
+      phase: board.totalProgress >= state.targetScore ? 'round_over' : state.phase,
+    };
   }
   return {
     ...state,
     bottom: { ...state.bottom, score: state.bottom.score + pts },
     peggingLog: log,
+    board,
+    winner: board.totalProgress >= state.targetScore ? true : state.winner,
+    phase: board.totalProgress >= state.targetScore ? 'round_over' : state.phase,
   };
 }
 
@@ -436,10 +454,11 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
 
   const topTotal = topScore - state.handStartScores.top;
   const bottomTotal = bottomScore - state.handStartScores.bottom;
-  const topBoardMove = applyBoardScore(boardBefore, 'topPeg', topTotal);
-  const bottomBoardMove = applyBoardScore(topBoardMove.board, 'bottomPeg', bottomTotal);
-  const boardLog = [...topBoardMove.effects, ...bottomBoardMove.effects];
-  const boardAfter = { ...bottomBoardMove.board, lastEffects: boardLog };
+  const showDelta = topHand + bottomHand + crib;
+  const boardMove =
+    showDelta > 0 ? applyBoardScore(boardBefore, showDelta) : { board: boardBefore, effects: [] };
+  const boardLog = boardMove.effects;
+  const boardAfter = { ...boardMove.board, lastEffects: boardLog };
   const playerWon = boardAfter.totalProgress >= state.targetScore;
   const outOfHands = state.handNumber >= state.handsLimit;
 

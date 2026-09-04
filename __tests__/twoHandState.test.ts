@@ -85,6 +85,27 @@ describe('two hand state', () => {
     expect(getActivePeggingSeat(afterBottom)).toBe('top');
   });
 
+  it('moves the combined board during pegging scores', () => {
+    const state = makeState({
+      phase: 'pegging',
+      targetScore: 30,
+      pegging: {
+        pile: [makeCard('10', 'hearts')],
+        playedCards: [{ card: makeCard('10', 'hearts'), playedBy: 'top' }],
+        count: 10,
+        topPassed: false,
+        bottomPassed: false,
+        topCards: [makeCard('6', 'clubs')],
+        bottomCards: [makeCard('5', 'clubs')],
+        lastToPlay: 'top',
+        pileResetCount: 0,
+      },
+    });
+
+    const next = playPeggingCard(state, 'bottom', makeCard('5', 'clubs'));
+    expect(next.board.totalProgress).toBeGreaterThan(0);
+  });
+
   it('scores show, updates the board, and can end the round', () => {
     const state = makeState({
       phase: 'pegging',

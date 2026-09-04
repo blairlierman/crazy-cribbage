@@ -30,10 +30,11 @@ export interface PegState {
 
 export interface BoardState {
   boardId: BoardId;
-  topPeg: PegState;
-  bottomPeg: PegState;
+  peg: PegState;
+  trailPosition: number;
   totalProgress: number;
   lastEffects: string[];
+  lastScore: number;
 }
 
 export interface BoardMoveResult {
@@ -255,10 +256,11 @@ export function getBoardDefinition(boardId: BoardId): BoardDefinition {
 export function createBoardState(boardId: BoardId): BoardState {
   return {
     boardId,
-    topPeg: createPegState(),
-    bottomPeg: createPegState(),
+    peg: createPegState(),
+    trailPosition: 0,
     totalProgress: 0,
     lastEffects: [],
+    lastScore: 0,
   };
 }
 
@@ -272,16 +274,12 @@ function createPegState(): PegState {
   };
 }
 
-export function applyBoardScore(
-  board: BoardState,
-  pegKey: 'topPeg' | 'bottomPeg',
-  rawPoints: number,
-): BoardMoveResult {
+export function applyBoardScore(board: BoardState, rawPoints: number): BoardMoveResult {
   const definition = getBoardDefinition(board.boardId);
-  const peg = board[pegKey];
+  const peg = board.peg;
   const effects: string[] = [];
-
   const move = Math.max(0, rawPoints + peg.nextMoveBonus - peg.nextMovePenalty);
+
   let nextPeg: PegState = {
     ...peg,
     position: Math.min(definition.trackLength, peg.position + move),
@@ -290,14 +288,10 @@ export function applyBoardScore(
   };
 
   if (peg.nextMoveBonus > 0) {
-    effects.push(
-      `${pegKey === 'topPeg' ? 'Top' : 'Bottom'} hand carries momentum (+${peg.nextMoveBonus}).`,
-    );
+    effects.push(`Momentum carries you forward (+${peg.nextMoveBonus}).`);
   }
   if (peg.nextMovePenalty > 0) {
-    effects.push(
-      `${pegKey === 'topPeg' ? 'Top' : 'Bottom'} hand pushes through mud (-${peg.nextMovePenalty}).`,
-    );
+    effects.push(`Mud slows you down (-${peg.nextMovePenalty}).`);
   }
 
   const visited = new Set<number>();
@@ -349,11 +343,11 @@ export function applyBoardScore(
 
   const updated: BoardState = {
     ...board,
-    [pegKey]: nextPeg,
-    totalProgress:
-      (pegKey === 'topPeg' ? nextPeg.position : board.topPeg.position) +
-      (pegKey === 'bottomPeg' ? nextPeg.position : board.bottomPeg.position),
+    peg: nextPeg,
+    trailPosition: peg.position,
+    totalProgress: nextPeg.position,
     lastEffects: effects,
+    lastScore: rawPoints,
   };
 
   return { board: updated, effects };
