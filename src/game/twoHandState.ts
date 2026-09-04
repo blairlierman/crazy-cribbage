@@ -438,8 +438,8 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
   const bottomTotal = bottomScore - state.handStartScores.bottom;
   const topBoardMove = applyBoardScore(boardBefore, 'topPeg', topTotal);
   const bottomBoardMove = applyBoardScore(topBoardMove.board, 'bottomPeg', bottomTotal);
-  const boardAfter = bottomBoardMove.board;
   const boardLog = [...topBoardMove.effects, ...bottomBoardMove.effects];
+  const boardAfter = { ...bottomBoardMove.board, lastEffects: boardLog };
   const playerWon = boardAfter.totalProgress >= state.targetScore;
   const outOfHands = state.handNumber >= state.handsLimit;
 
