@@ -48,7 +48,7 @@ export const BOARD_DEFINITIONS: Record<BoardId, BoardDefinition> = {
     name: 'Tavern Table',
     theme: 'Spilled drinks, coins, and knives on a battered card table.',
     description: 'Friendly early boosts with a few greasy setbacks.',
-    trackLength: 28,
+    trackLength: 45,
     spaces: [
       {
         position: 4,
@@ -99,7 +99,7 @@ export const BOARD_DEFINITIONS: Record<BoardId, BoardDefinition> = {
     name: 'Moonlit Maze',
     theme: 'Silver hedges, hidden gates, and winding dead ends.',
     description: 'More defensive spaces with a punishing central setback.',
-    trackLength: 32,
+    trackLength: 95,
     spaces: [
       {
         position: 5,
@@ -150,7 +150,7 @@ export const BOARD_DEFINITIONS: Record<BoardId, BoardDefinition> = {
     name: 'Pirate Map',
     theme: 'Currents, coves, and cannon-blasted shortcuts.',
     description: 'Swingy routes with both treasure boosts and harsh currents.',
-    trackLength: 36,
+    trackLength: 150,
     spaces: [
       {
         position: 3,
@@ -201,7 +201,7 @@ export const BOARD_DEFINITIONS: Record<BoardId, BoardDefinition> = {
     name: 'Clockwork Workshop',
     theme: 'Gears, springs, and whirring brass conveyors.',
     description: 'Long board with compounding movement effects.',
-    trackLength: 40,
+    trackLength: 210,
     spaces: [
       {
         position: 6,

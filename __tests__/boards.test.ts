@@ -1,4 +1,6 @@
 import { applyBoardScore, createBoardState } from '../src/game/boards';
+import { getModeConfig } from '../src/game/modes';
+import { getBoardDefinition } from '../src/game/boards';
 
 describe('board progression', () => {
   it('applies boosts and updates total progress', () => {
@@ -14,5 +16,14 @@ describe('board progression', () => {
 
     const second = applyBoardScore(first, 3);
     expect(second.effects.some((line) => line.includes('shielded'))).toBe(true);
+  });
+
+  it('provides enough holes for each Twin Hands round target', () => {
+    const rounds = getModeConfig('two_hands').rounds;
+
+    for (const round of rounds) {
+      const board = getBoardDefinition(round.boardId!);
+      expect(board.trackLength).toBeGreaterThanOrEqual(round.targetScore);
+    }
   });
 });

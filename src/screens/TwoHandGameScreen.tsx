@@ -70,6 +70,8 @@ export default function TwoHandGameScreen({
   const [boardPreview, setBoardPreview] = useState<BoardState>(() => cloneBoard(game.board));
   const [boardAnimating, setBoardAnimating] = useState(false);
   const [boardSpotlight, setBoardSpotlight] = useState(false);
+  const [showBoardModal, setShowBoardModal] = useState(false);
+  const [showRoundIntro, setShowRoundIntro] = useState(true);
   const [abilityTooltip, setAbilityTooltip] = useState<AbilityTooltipState | null>(null);
   const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const spotlightRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,6 +186,7 @@ export default function TwoHandGameScreen({
     setGame((current) => dealTwoHands(current));
     setSelectedCards([]);
     setSwapSelected(null);
+    setShowRoundIntro(false);
   };
 
   const confirmDiscard = () => {
@@ -349,6 +352,47 @@ export default function TwoHandGameScreen({
 
   const displayedBoard = boardAnimating ? boardPreview : game.board;
 
+  if (showRoundIntro) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTopRow}>
+            <View style={styles.handsBadge}>
+              <Text style={styles.handsBadgeLabel}>Hands</Text>
+              <Text style={styles.handsBadgeValue}>{handsLabel}</Text>
+            </View>
+
+            <View style={styles.headerCenter}>
+              <Text
+                style={styles.roundLabel}
+              >{`Twin Hands • Round ${roundIndex + 1} (to ${round.targetScore})`}</Text>
+              <Text style={styles.subLabel}>Preview the board before dealing the opening hand</Text>
+            </View>
+
+            <View style={styles.scoreBadge}>
+              <Text style={styles.scoreBadgeLabel}>Combined</Text>
+              <Text style={styles.scoreBadgeValue}>{combinedScore}</Text>
+            </View>
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.roundIntroBody}>
+          <BoardView board={displayedBoard} targetScore={round.targetScore} />
+          <View style={styles.roundIntroCard}>
+            <Text style={styles.roundIntroTitle}>Round Goal</Text>
+            <Text style={styles.roundIntroText}>
+              Reach {round.targetScore} board progress on this board within {round.handsLimit} hand
+              {round.handsLimit === 1 ? '' : 's'}.
+            </Text>
+            <TouchableOpacity style={styles.roundIntroBtn} onPress={() => setShowRoundIntro(false)}>
+              <Text style={styles.roundIntroBtnText}>Continue to Play</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -373,7 +417,14 @@ export default function TwoHandGameScreen({
           </View>
         </View>
 
-        <View style={styles.progressRow}>
+        <TouchableOpacity
+          style={styles.progressRow}
+          onPress={() => setShowBoardModal(true)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Open board progress"
+          accessibilityHint="Shows the full board and current peg position"
+        >
           <View style={styles.progressTrack}>
             <View
               style={[
@@ -383,7 +434,7 @@ export default function TwoHandGameScreen({
             />
           </View>
           <Text style={styles.progressTarget}>/ {round.targetScore}</Text>
-        </View>
+        </TouchableOpacity>
 
         {abilityTokens.length > 0 && (
           <View style={styles.abilityRow}>
@@ -573,6 +624,25 @@ export default function TwoHandGameScreen({
         )}
       </ScrollView>
 
+      {showBoardModal && (
+        <Modal transparent animationType="fade" onRequestClose={() => setShowBoardModal(false)}>
+          <Pressable style={styles.tooltipOverlay} onPress={() => setShowBoardModal(false)}>
+            <View style={styles.boardModalBox}>
+              <Text style={styles.boardModalTitle}>Board Progress</Text>
+              <ScrollView style={styles.boardModalScroll}>
+                <BoardView board={displayedBoard} targetScore={round.targetScore} />
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.boardModalBtn}
+                onPress={() => setShowBoardModal(false)}
+              >
+                <Text style={styles.boardModalBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+
       {abilityTooltip && (
         <Modal transparent animationType="fade" onRequestClose={() => setAbilityTooltip(null)}>
           <Pressable style={styles.tooltipOverlay} onPress={() => setAbilityTooltip(null)}>
@@ -701,6 +771,39 @@ const styles = StyleSheet.create({
     padding: 12,
     paddingBottom: 40,
     gap: 12,
+  },
+  roundIntroBody: {
+    flex: 1,
+    padding: 16,
+    gap: 16,
+  },
+  roundIntroCard: {
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 12,
+    padding: 16,
+    gap: 10,
+  },
+  roundIntroTitle: {
+    color: '#FFD700',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  roundIntroText: {
+    color: '#E8F5E9',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  roundIntroBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2E7D32',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  roundIntroBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
   boardWrapper: {
     marginBottom: 12,
@@ -916,5 +1019,35 @@ const styles = StyleSheet.create({
   tooltipDesc: {
     color: '#E3F2FD',
     fontSize: 14,
+  },
+  boardModalBox: {
+    backgroundColor: '#1a237e',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+    maxHeight: '85%',
+    gap: 12,
+  },
+  boardModalTitle: {
+    color: '#FFD700',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  boardModalBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#2E7D32',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  boardModalBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  boardModalScroll: {
+    maxHeight: '100%',
   },
 });
