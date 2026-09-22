@@ -126,6 +126,9 @@ export default function TwoHandGameScreen({
 
     setBoardAnimating(true);
     setBoardSpotlight(true);
+    if (!showRoundIntro) {
+      setShowBoardModal(true);
+    }
     setBoardPreview(cloneBoard(previousBoard));
 
     let currentPosition = previousBoard.peg.position;
@@ -155,7 +158,7 @@ export default function TwoHandGameScreen({
     return () => {
       if (animationRef.current) clearTimeout(animationRef.current);
     };
-  }, [game.board]);
+  }, [game.board, showRoundIntro]);
 
   useEffect(() => {
     if (game.phase !== 'pegging' || game.winner !== null || !isTwoHandPeggingComplete(game)) return;
@@ -186,7 +189,6 @@ export default function TwoHandGameScreen({
     setGame((current) => dealTwoHands(current));
     setSelectedCards([]);
     setSwapSelected(null);
-    setShowRoundIntro(false);
   };
 
   const confirmDiscard = () => {
@@ -337,57 +339,7 @@ export default function TwoHandGameScreen({
     );
   };
 
-  const shouldShowBoard =
-    boardAnimating ||
-    boardSpotlight ||
-    game.phase === 'discard' ||
-    game.phase === 'peek_starter' ||
-    game.phase === 'swap' ||
-    game.phase === 'show' ||
-    game.phase === 'round_over';
-
   const displayedBoard = boardAnimating ? boardPreview : game.board;
-
-  if (showRoundIntro) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.handsBadge}>
-              <Text style={styles.handsBadgeLabel}>Hands</Text>
-              <Text style={styles.handsBadgeValue}>{handsLabel}</Text>
-            </View>
-
-            <View style={styles.headerCenter}>
-              <Text
-                style={styles.roundLabel}
-              >{`Twin Hands • Round ${roundIndex + 1} (to ${round.targetScore})`}</Text>
-              <Text style={styles.subLabel}>Preview the board before dealing the opening hand</Text>
-            </View>
-
-            <View style={styles.scoreBadge}>
-              <Text style={styles.scoreBadgeLabel}>Combined</Text>
-              <Text style={styles.scoreBadgeValue}>{combinedScore}</Text>
-            </View>
-          </View>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.roundIntroBody}>
-          <BoardView board={displayedBoard} targetScore={round.targetScore} />
-          <View style={styles.roundIntroCard}>
-            <Text style={styles.roundIntroTitle}>Round Goal</Text>
-            <Text style={styles.roundIntroText}>
-              Reach {round.targetScore} board progress on this board within {round.handsLimit} hand
-              {round.handsLimit === 1 ? '' : 's'}.
-            </Text>
-            <TouchableOpacity style={styles.roundIntroBtn} onPress={() => setShowRoundIntro(false)}>
-              <Text style={styles.roundIntroBtnText}>Continue to Play</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -456,12 +408,6 @@ export default function TwoHandGameScreen({
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {shouldShowBoard && (
-          <View style={styles.boardWrapper}>
-            <BoardView board={displayedBoard} targetScore={round.targetScore} />
-          </View>
-        )}
-
         {renderSeat('top', 'Top Hand 🔵', topCards)}
 
         <View style={styles.middleRow}>
@@ -620,24 +566,50 @@ export default function TwoHandGameScreen({
         )}
       </ScrollView>
 
-      {showBoardModal && (
-        <Modal transparent animationType="fade" onRequestClose={() => setShowBoardModal(false)}>
-          <Pressable style={styles.tooltipOverlay} onPress={() => setShowBoardModal(false)}>
-            <View style={styles.boardModalBox}>
-              <Text style={styles.boardModalTitle}>Board Progress</Text>
-              <ScrollView style={styles.boardModalScroll}>
-                <BoardView board={displayedBoard} targetScore={round.targetScore} />
-              </ScrollView>
-              <TouchableOpacity
-                style={styles.boardModalBtn}
-                onPress={() => setShowBoardModal(false)}
-              >
-                <Text style={styles.boardModalBtnText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Modal>
-      )}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showRoundIntro || showBoardModal}
+        onRequestClose={() => {
+          if (!showRoundIntro) setShowBoardModal(false);
+        }}
+      >
+        <Pressable
+          style={styles.tooltipOverlay}
+          onPress={() => {
+            if (!showRoundIntro) setShowBoardModal(false);
+          }}
+        >
+          <View style={styles.boardModalBox}>
+            <Text style={styles.boardModalTitle}>
+              {showRoundIntro ? 'Round Board Preview' : 'Board Progress'}
+            </Text>
+            {showRoundIntro && (
+              <Text style={styles.boardModalText}>
+                Reach {round.targetScore} board progress on this board within {round.handsLimit}{' '}
+                hand{round.handsLimit === 1 ? '' : 's'}.
+              </Text>
+            )}
+            <ScrollView style={styles.boardModalScroll}>
+              <BoardView board={displayedBoard} targetScore={round.targetScore} />
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.boardModalBtn}
+              onPress={() => {
+                if (showRoundIntro) {
+                  setShowRoundIntro(false);
+                } else {
+                  setShowBoardModal(false);
+                }
+              }}
+            >
+              <Text style={styles.boardModalBtnText}>
+                {showRoundIntro ? 'Continue to Play' : 'Close'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       {abilityTooltip && (
         <Modal transparent animationType="fade" onRequestClose={() => setAbilityTooltip(null)}>
@@ -767,42 +739,6 @@ const styles = StyleSheet.create({
     padding: 12,
     paddingBottom: 40,
     gap: 12,
-  },
-  roundIntroBody: {
-    flex: 1,
-    padding: 16,
-    gap: 16,
-  },
-  roundIntroCard: {
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: 12,
-    padding: 16,
-    gap: 10,
-  },
-  roundIntroTitle: {
-    color: '#FFD700',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  roundIntroText: {
-    color: '#E8F5E9',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  roundIntroBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#2E7D32',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  roundIntroBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  boardWrapper: {
-    marginBottom: 12,
   },
   section: {
     marginBottom: 12,
@@ -1030,6 +966,11 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 18,
     fontWeight: '700',
+  },
+  boardModalText: {
+    color: '#E8F5E9',
+    fontSize: 14,
+    lineHeight: 20,
   },
   boardModalBtn: {
     alignSelf: 'flex-end',
