@@ -8,6 +8,10 @@ interface ScoreBoardProps {
   targetScore: number;
   roundIndex: number;
   abilities?: UnlockedAbilities;
+  leftLabel?: string;
+  rightLabel?: string;
+  modeLabel?: string;
+  subLabel?: string;
 }
 
 export default function ScoreBoard({
@@ -16,8 +20,11 @@ export default function ScoreBoard({
   targetScore,
   roundIndex,
   abilities,
+  leftLabel = 'You',
+  rightLabel = 'AI',
+  modeLabel,
+  subLabel,
 }: ScoreBoardProps) {
-  const roundLabels = ['Round 1 (to 31)', 'Round 2 (to 61)', 'Round 3 (to 91)', 'Round 4 (to 121)'];
   const [tooltip, setTooltip] = useState<{ name: string; description: string } | null>(null);
 
   // Build list of earned ability tokens (one per stack)
@@ -38,10 +45,14 @@ export default function ScoreBoard({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.roundLabel}>{roundLabels[roundIndex] ?? `Round ${roundIndex + 1}`}</Text>
+      <Text style={styles.roundLabel}>
+        {modeLabel ? `${modeLabel} • ` : ''}
+        {`Round ${roundIndex + 1} (to ${targetScore})`}
+      </Text>
+      {subLabel ? <Text style={styles.subLabel}>{subLabel}</Text> : null}
       <View style={styles.scores}>
         <View style={styles.scoreBlock}>
-          <Text style={styles.label}>You</Text>
+          <Text style={styles.label}>{leftLabel}</Text>
           <Text style={styles.score}>{playerScore}</Text>
           <View style={styles.barTrack}>
             <View
@@ -55,7 +66,7 @@ export default function ScoreBoard({
         </View>
         <Text style={styles.target}>/ {targetScore}</Text>
         <View style={styles.scoreBlock}>
-          <Text style={styles.label}>AI</Text>
+          <Text style={styles.label}>{rightLabel}</Text>
           <Text style={styles.score}>{aiScore}</Text>
           <View style={styles.barTrack}>
             <View
@@ -106,6 +117,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a237e',
     paddingVertical: 10,
     paddingHorizontal: 16,
+  },
+  subLabel: {
+    color: '#E3F2FD',
+    fontSize: 11,
+    textAlign: 'center',
+    marginBottom: 6,
   },
   roundLabel: {
     color: '#90CAF9',
