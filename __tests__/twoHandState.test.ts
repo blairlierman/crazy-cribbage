@@ -112,6 +112,55 @@ describe('two hand state', () => {
     expect(getActivePeggingSeat(afterPass)).toBe('bottom');
   });
 
+  it('allows an empty active hand to say go and return control to the hand with cards', () => {
+    const state = makeState({
+      phase: 'pegging',
+      pegging: {
+        pile: [makeCard('10', 'hearts')],
+        playedCards: [{ card: makeCard('10', 'hearts'), playedBy: 'top' }],
+        count: 10,
+        topPassed: false,
+        bottomPassed: false,
+        topCards: [makeCard('5', 'clubs')],
+        bottomCards: [],
+        lastToPlay: 'top',
+        pileResetCount: 0,
+      },
+    });
+
+    const afterPass = passPegging(state, 'bottom');
+
+    expect(afterPass.pegging.bottomPassed).toBe(true);
+    expect(afterPass.pegging.lastToPlay).toBe('bottom');
+    expect(getActivePeggingSeat(afterPass)).toBe('top');
+
+    const afterPlay = playPeggingCard(afterPass, 'top', makeCard('5', 'clubs'));
+    expect(afterPlay.pegging.lastToPlay).toBe('top');
+    expect(afterPlay.pegging.topCards).toHaveLength(0);
+  });
+
+  it('lets the empty hand keep saying go after another card is played', () => {
+    const state = makeState({
+      phase: 'pegging',
+      pegging: {
+        pile: [makeCard('8', 'hearts')],
+        playedCards: [{ card: makeCard('8', 'hearts'), playedBy: 'top' }],
+        count: 8,
+        topPassed: false,
+        bottomPassed: true,
+        topCards: [makeCard('4', 'clubs')],
+        bottomCards: [],
+        lastToPlay: 'top',
+        pileResetCount: 0,
+      },
+    });
+
+    const afterPass = passPegging(state, 'bottom');
+
+    expect(afterPass.pegging.bottomPassed).toBe(true);
+    expect(getActivePeggingSeat(afterPass)).toBe('top');
+  });
+
   it('moves the combined board during pegging scores', () => {
     const state = makeState({
       phase: 'pegging',

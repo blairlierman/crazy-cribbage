@@ -250,11 +250,7 @@ export default function TwoHandGameScreen({
     const isDealer = game.dealer === seat;
     const seatPassed = seat === 'top' ? game.pegging.topPassed : game.pegging.bottomPassed;
     const seatCanPass =
-      game.phase === 'pegging' &&
-      game.winner === null &&
-      isActiveSeat &&
-      !canSeatPlay(game, seat) &&
-      cards.length > 0;
+      game.phase === 'pegging' && game.winner === null && isActiveSeat && !canSeatPlay(game, seat);
 
     return (
       <View style={styles.section}>
