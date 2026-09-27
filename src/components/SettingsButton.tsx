@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { clearTraceEvents, exportTraceEvents, type TraceEvent } from '../store/traceLog';
 
-interface TraceLogButtonProps {
+interface SettingsButtonProps {
   events: TraceEvent[];
   onClear: () => void;
 }
 
-export default function TraceLogButton({ events, onClear }: TraceLogButtonProps) {
+export default function SettingsButton({ events, onClear }: SettingsButtonProps) {
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -28,8 +28,12 @@ export default function TraceLogButton({ events, onClear }: TraceLogButtonProps)
 
   return (
     <>
-      <TouchableOpacity style={styles.openButton} onPress={() => setVisible(true)}>
-        <Text style={styles.openButtonText}>Trace Log</Text>
+      <TouchableOpacity
+        accessibilityLabel="Open settings"
+        style={styles.openButton}
+        onPress={() => setVisible(true)}
+      >
+        <Text style={styles.openButtonText}>⚙️</Text>
       </TouchableOpacity>
       <Modal
         visible={visible}
@@ -39,18 +43,19 @@ export default function TraceLogButton({ events, onClear }: TraceLogButtonProps)
       >
         <View style={styles.overlay}>
           <View style={styles.modal}>
-            <Text style={styles.title}>Game Trace Log</Text>
+            <Text style={styles.title}>Settings</Text>
+            <Text style={styles.sectionTitle}>Trace Log</Text>
             <Text style={styles.description}>
               {events.length} event{events.length === 1 ? '' : 's'} recorded. This log stays on this
               device until you clear it.
             </Text>
             <TouchableOpacity style={styles.button} onPress={handleExport}>
               <Text style={styles.buttonText}>
-                {Platform.OS === 'web' ? 'Download Log' : 'Share Log'}
+                {Platform.OS === 'web' ? 'Download Trace Log' : 'Share Trace Log'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={handleClear}>
-              <Text style={styles.buttonText}>Clear Log</Text>
+              <Text style={styles.buttonText}>Clear Trace Log</Text>
             </TouchableOpacity>
             {message && <Text style={styles.message}>{message}</Text>}
             <TouchableOpacity onPress={() => setVisible(false)}>
@@ -64,8 +69,8 @@ export default function TraceLogButton({ events, onClear }: TraceLogButtonProps)
 }
 
 const styles = StyleSheet.create({
-  openButton: { position: 'absolute', top: 12, right: 12, padding: 8, zIndex: 2 },
-  openButtonText: { color: '#90CAF9', fontSize: 12, fontWeight: '700' },
+  openButton: { position: 'absolute', top: 8, right: 12, padding: 8, zIndex: 2 },
+  openButtonText: { fontSize: 22 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
@@ -80,7 +85,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
   },
-  title: { color: '#FFD700', fontSize: 22, fontWeight: '700', marginBottom: 12 },
+  title: { color: '#FFD700', fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  sectionTitle: { color: '#fff', fontSize: 17, fontWeight: '700', marginBottom: 8 },
   description: { color: '#E3F2FD', lineHeight: 20, marginBottom: 18 },
   button: {
     backgroundColor: '#4CAF50',

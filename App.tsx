@@ -8,7 +8,7 @@ import GameScreen from './src/screens/GameScreen';
 import RoundCompleteScreen from './src/screens/RoundCompleteScreen';
 import RunCompleteScreen from './src/screens/RunCompleteScreen';
 import TwoHandGameScreen from './src/screens/TwoHandGameScreen';
-import TraceLogButton from './src/components/TraceLogButton';
+import SettingsButton from './src/components/SettingsButton';
 import { appendTraceEvent, loadTraceEvents, type TraceEvent } from './src/store/traceLog';
 import {
   RunState,
@@ -73,7 +73,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      <TraceLogButton events={traceEvents} onClear={() => setTraceEvents([])} />
+      <SettingsButton events={traceEvents} onClear={() => setTraceEvents([])} />
       {screen === 'home' && <HomeScreen onStartRun={handleStartRun} onTrace={trace} />}
       {screen === 'game' &&
         (run.mode === 'classic' ? (
