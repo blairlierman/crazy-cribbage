@@ -5,6 +5,8 @@ web-build/
 android/
 ios/
 coverage/
+test-results/
+playwright-report/
 *.orig.*
 *.jks
 *.p8
