@@ -11,6 +11,7 @@ export interface TraceEvent {
 
 const STORAGE_KEY = '@crazy-cribbage/trace-log';
 const MAX_EVENTS = 2000;
+let appendQueue = Promise.resolve();
 
 export async function loadTraceEvents(): Promise<TraceEvent[]> {
   try {
@@ -25,9 +26,16 @@ export async function loadTraceEvents(): Promise<TraceEvent[]> {
 
 export async function appendTraceEvent(type: string, details?: object): Promise<TraceEvent> {
   const event: TraceEvent = { timestamp: new Date().toISOString(), type, details };
-  const events = [...(await loadTraceEvents()), event].slice(-MAX_EVENTS);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  return event;
+  const write = appendQueue.then(async () => {
+    const events = [...(await loadTraceEvents()), event].slice(-MAX_EVENTS);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    return event;
+  });
+  appendQueue = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  return write;
 }
 
 export async function clearTraceEvents(): Promise<void> {
@@ -64,10 +72,10 @@ export async function exportTraceEvents(events: TraceEvent[]): Promise<void> {
   if (!FileSystem.documentDirectory) {
     throw new Error('No writable document directory is available.');
   }
-  const path = `${FileSystem.documentDirectory}${filename}`;
-  await FileSystem.writeAsStringAsync(path, contents);
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is not available on this device.');
   }
+  const path = `${FileSystem.documentDirectory}${filename}`;
+  await FileSystem.writeAsStringAsync(path, contents);
   await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: 'Share trace log' });
 }
