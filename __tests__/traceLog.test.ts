@@ -95,6 +95,22 @@ describe('trace log', () => {
     await expect(loadTraceEvents()).resolves.toEqual([]);
   });
 
+  it('does not repopulate storage when clear follows a pending append', async () => {
+    firstSetItemBlocked = true;
+
+    const { appendTraceEvent, clearTraceEvents, loadTraceEvents } =
+      await import('../src/store/traceLog');
+    const append = appendTraceEvent('start_run');
+    const clear = clearTraceEvents();
+
+    await waitForFirstSetItemToBlock();
+    releaseFirstSetItem?.();
+
+    await Promise.all([append, clear]);
+
+    await expect(loadTraceEvents()).resolves.toEqual([]);
+  });
+
   it('checks native sharing availability before writing a file', async () => {
     mockPlatformOS = 'ios';
     mockIsAvailableAsync.mockResolvedValue(false);

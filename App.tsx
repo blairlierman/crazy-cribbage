@@ -32,9 +32,9 @@ export default function App() {
   }, []);
 
   const trace = (type: string, details?: object) => {
-    appendTraceEvent(type, details).then((event) => {
-      setTraceEvents((events) => [...events, event].slice(-2000));
-    });
+    appendTraceEvent(type, details)
+      .then(() => loadTraceEvents())
+      .then(setTraceEvents);
   };
 
   const handleStartRun = (mode: GameMode) => {
@@ -73,7 +73,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      <SettingsButton events={traceEvents} onClear={() => setTraceEvents([])} />
+      <SettingsButton events={traceEvents} onClear={() => loadTraceEvents().then(setTraceEvents)} />
       {screen === 'home' && <HomeScreen onStartRun={handleStartRun} onTrace={trace} />}
       {screen === 'game' &&
         (run.mode === 'classic' ? (

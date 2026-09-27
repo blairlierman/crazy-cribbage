@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+declare const require: (id: string) => any;
+
+const { readFile } = require('fs/promises');
+
 test('opens Settings and downloads the trace log', async ({ page }) => {
   await page.goto('/');
 
@@ -26,4 +30,13 @@ test('opens Settings and downloads the trace log', async ({ page }) => {
   await page.getByRole('button', { name: 'Download Trace Log' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^crazy-cribbage-trace-.*\.json$/);
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+
+  const exportedTrace = JSON.parse(await readFile(downloadPath!, 'utf8'));
+  expect(exportedTrace.events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ type: 'start_run', details: { mode: 'classic' } }),
+    ]),
+  );
 });

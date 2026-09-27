@@ -39,7 +39,12 @@ export async function appendTraceEvent(type: string, details?: object): Promise<
 }
 
 export async function clearTraceEvents(): Promise<void> {
-  await AsyncStorage.removeItem(STORAGE_KEY);
+  const clear = appendQueue.then(() => AsyncStorage.removeItem(STORAGE_KEY));
+  appendQueue = clear.then(
+    () => undefined,
+    () => undefined,
+  );
+  await clear;
 }
 
 export function traceText(events: TraceEvent[]): string {
