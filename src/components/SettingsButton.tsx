@@ -29,7 +29,9 @@ export default function SettingsButton({ events, onClear }: SettingsButtonProps)
   return (
     <>
       <TouchableOpacity
+        accessible
         accessibilityLabel="Open settings"
+        accessibilityRole="button"
         style={styles.openButton}
         onPress={() => setVisible(true)}
       >
@@ -49,16 +51,30 @@ export default function SettingsButton({ events, onClear }: SettingsButtonProps)
               {events.length} event{events.length === 1 ? '' : 's'} recorded. This log stays on this
               device until you clear it.
             </Text>
-            <TouchableOpacity style={styles.button} onPress={handleExport}>
+            <TouchableOpacity
+              accessible
+              accessibilityRole="button"
+              style={styles.button}
+              onPress={handleExport}
+            >
               <Text style={styles.buttonText}>
                 {Platform.OS === 'web' ? 'Download Trace Log' : 'Share Trace Log'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleClear}>
+            <TouchableOpacity
+              accessible
+              accessibilityRole="button"
+              style={styles.secondaryButton}
+              onPress={handleClear}
+            >
               <Text style={styles.buttonText}>Clear Trace Log</Text>
             </TouchableOpacity>
             {message && <Text style={styles.message}>{message}</Text>}
-            <TouchableOpacity onPress={() => setVisible(false)}>
+            <TouchableOpacity
+              accessible
+              accessibilityRole="button"
+              onPress={() => setVisible(false)}
+            >
               <Text style={styles.close}>Close</Text>
             </TouchableOpacity>
           </View>

@@ -26,6 +26,8 @@ export default function HomeScreen({ onStartRun, onTrace }: HomeScreenProps) {
             Win each round to unlock a new <Text style={styles.highlight}>ability</Text>.
           </Text>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={styles.button}
             onPress={() => {
               onTrace('start_run', { mode: 'classic' });
@@ -47,6 +49,8 @@ export default function HomeScreen({ onStartRun, onTrace }: HomeScreenProps) {
             Clear escalating board targets before you run out of hands to earn permanent upgrades.
           </Text>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={[styles.button, styles.altButton]}
             onPress={() => {
               onTrace('start_run', { mode: 'two_hands' });
