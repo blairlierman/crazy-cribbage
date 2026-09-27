@@ -4,7 +4,7 @@ import { MODE_CONFIGS, type GameMode } from '../game/modes';
 
 interface HomeScreenProps {
   onStartRun: (mode: GameMode) => void;
-  onTrace: (type: string, details?: Record<string, unknown>) => void;
+  onTrace: (type: string, details?: object) => void;
 }
 
 export default function HomeScreen({ onStartRun, onTrace }: HomeScreenProps) {

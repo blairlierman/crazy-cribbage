@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 export interface TraceEvent {
   timestamp: string;
   type: string;
-  details?: Record<string, unknown>;
+  details?: object;
 }
 
 const STORAGE_KEY = '@crazy-cribbage/trace-log';
@@ -23,10 +23,7 @@ export async function loadTraceEvents(): Promise<TraceEvent[]> {
   }
 }
 
-export async function appendTraceEvent(
-  type: string,
-  details?: Record<string, unknown>,
-): Promise<TraceEvent> {
+export async function appendTraceEvent(type: string, details?: object): Promise<TraceEvent> {
   const event: TraceEvent = { timestamp: new Date().toISOString(), type, details };
   const events = [...(await loadTraceEvents()), event].slice(-MAX_EVENTS);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));

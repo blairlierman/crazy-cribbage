@@ -31,7 +31,7 @@ export default function App() {
     loadTraceEvents().then(setTraceEvents);
   }, []);
 
-  const trace = (type: string, details?: Record<string, unknown>) => {
+  const trace = (type: string, details?: object) => {
     appendTraceEvent(type, details).then((event) => {
       setTraceEvents((events) => [...events, event].slice(-2000));
     });

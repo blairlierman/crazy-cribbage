@@ -36,7 +36,7 @@ interface GameScreenProps {
   round: RoundConfig;
   mode: GameMode;
   onRoundComplete: (result: RoundResult) => void;
-  onTrace: (type: string, details?: Record<string, unknown>) => void;
+  onTrace: (type: string, details?: object) => void;
 }
 
 export default function GameScreen({
