@@ -36,6 +36,7 @@ interface GameScreenProps {
   round: RoundConfig;
   mode: GameMode;
   onRoundComplete: (result: RoundResult) => void;
+  onTrace: (type: string, details?: Record<string, unknown>) => void;
 }
 
 export default function GameScreen({
@@ -44,6 +45,7 @@ export default function GameScreen({
   round,
   mode,
   onRoundComplete,
+  onTrace,
 }: GameScreenProps) {
   const target = round.targetScore;
   const { width } = useWindowDimensions();
@@ -210,6 +212,7 @@ export default function GameScreen({
 
   // ─── Handle player card selection during discard ─────────────────────
   const toggleSelectCard = (cardId: string) => {
+    onTrace('card_selection', { phase: game.phase, cardId });
     setSelectedCards((prev) => {
       if (prev.includes(cardId)) return prev.filter((id) => id !== cardId);
       if (prev.length >= discardCount) return prev;
@@ -221,6 +224,7 @@ export default function GameScreen({
   const confirmDiscard = () => {
     if (selectedCards.length !== discardCount) return;
     const cards = game.player.hand.filter((c) => selectedCards.includes(c.id));
+    onTrace('discard', { cards: cards.map((card) => card.id) });
     setGame((g) => {
       const newState = playerDiscard(g, cards);
       const crib = [...newState.crib, ...cards];
@@ -232,6 +236,7 @@ export default function GameScreen({
   // ─── Swap card ───────────────────────────────────────────────────────
   const confirmSwap = () => {
     const card = game.player.hand.find((c) => c.id === swapSelected) ?? null;
+    onTrace('swap', { cardId: card?.id ?? null });
     setGame((g) => playerSwap(g, card));
     setSwapSelected(null);
   };
@@ -243,11 +248,13 @@ export default function GameScreen({
     if (game.pegging.lastToPlay === 'player') return;
     const canPlay = cardValue(card) + game.pegging.count <= 31;
     if (!canPlay) return;
+    onTrace('pegging_choice', { cardId: card.id, count: game.pegging.count });
     setGame((g) => playerPlayCard(g, card));
   };
 
   // ─── Player passes ───────────────────────────────────────────────────
   const handlePass = () => {
+    onTrace('pegging_pass', { count: game.pegging.count });
     setGame((g) => {
       const p = g.pegging;
       const aiCanPlay = p.aiCards.some((c) => cardValue(c) + p.count <= 31);
@@ -277,9 +284,11 @@ export default function GameScreen({
         handsLimit: null,
         boardProgress: null,
       };
+      onTrace('round_complete', result);
       onRoundComplete(result);
       return;
     }
+    onTrace('deal_hand');
     deal();
   };
 
