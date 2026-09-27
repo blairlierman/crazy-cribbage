@@ -26,17 +26,26 @@ import {
   scoreShow,
 } from '../game/gameState';
 import { UnlockedAbilities, hasAbility } from '../game/abilities';
+import { GameMode, RoundConfig } from '../game/modes';
 import { scorePegging } from '../game/scoring';
-import { ROUND_TARGETS, RoundResult } from '../store/runState';
+import { RoundResult } from '../store/runState';
 
 interface GameScreenProps {
   abilities: UnlockedAbilities;
   roundIndex: number;
+  round: RoundConfig;
+  mode: GameMode;
   onRoundComplete: (result: RoundResult) => void;
 }
 
-export default function GameScreen({ abilities, roundIndex, onRoundComplete }: GameScreenProps) {
-  const target = ROUND_TARGETS[roundIndex];
+export default function GameScreen({
+  abilities,
+  roundIndex,
+  round,
+  mode,
+  onRoundComplete,
+}: GameScreenProps) {
+  const target = round.targetScore;
   const { width } = useWindowDimensions();
   const wideLayout = width >= 600;
   const [game, setGame] = useState<GameState>(() => {
@@ -257,11 +266,16 @@ export default function GameScreen({ abilities, roundIndex, onRoundComplete }: G
   const handleNextHand = () => {
     if (game.winner) {
       const result: RoundResult = {
+        mode,
         roundIndex,
         targetScore: target,
         playerWon: game.winner === 'player',
         playerFinalScore: game.player.score,
-        aiFinalScore: game.ai.score,
+        opponentFinalScore: game.ai.score,
+        boardId: null,
+        handsUsed: null,
+        handsLimit: null,
+        boardProgress: null,
       };
       onRoundComplete(result);
       return;

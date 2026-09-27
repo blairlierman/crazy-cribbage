@@ -2,31 +2,41 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ability, rollAbilityChoices } from '../game/abilities';
 import { UnlockedAbilities } from '../game/abilities';
-import { ROUND_TARGETS, RoundResult } from '../store/runState';
+import { GameMode, getModeConfig } from '../game/modes';
+import { RoundResult } from '../store/runState';
 
 interface RoundCompleteScreenProps {
   result: RoundResult;
   abilities: UnlockedAbilities;
+  mode: GameMode;
+  rewardChoices: number;
   onChooseAbility: (abilityId: string | null) => void;
 }
 
 export default function RoundCompleteScreen({
   result,
   abilities,
+  mode,
+  rewardChoices,
   onChooseAbility,
 }: RoundCompleteScreenProps) {
-  const [choices] = useState<Ability[]>(() => rollAbilityChoices(abilities, 3));
+  const [choices] = useState<Ability[]>(() => rollAbilityChoices(abilities, rewardChoices, mode));
   const [chosen, setChosen] = useState<string | null>(null);
-  const nextTarget = ROUND_TARGETS[result.roundIndex + 1];
+  const nextRound = getModeConfig(mode).rounds[result.roundIndex + 1];
+  const nextTarget = nextRound?.targetScore;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.emoji}>{result.playerWon ? '🏆' : '💀'}</Text>
       <Text style={styles.title}>{result.playerWon ? 'Round Complete!' : 'Defeated!'}</Text>
       <Text style={styles.targetText}>
-        {result.playerWon
-          ? `You reached ${result.playerFinalScore} pts (target: ${result.targetScore})`
-          : `You scored ${result.playerFinalScore} — AI had ${result.aiFinalScore}`}
+        {mode === 'classic'
+          ? result.playerWon
+            ? `You reached ${result.playerFinalScore} pts (target: ${result.targetScore})`
+            : `You scored ${result.playerFinalScore} — AI had ${result.opponentFinalScore}`
+          : result.playerWon
+            ? `You cleared ${result.playerFinalScore}/${result.targetScore} board progress in ${result.handsUsed}/${result.handsLimit} hands`
+            : `You finished at ${result.playerFinalScore}/${result.targetScore} board progress after ${result.handsUsed}/${result.handsLimit} hands`}
       </Text>
 
       {result.playerWon && choices.length > 0 && (

@@ -1,3 +1,5 @@
+import { GameMode } from './modes';
+
 export type AbilityId =
   | 'extra_discard' // can discard 3 cards to crib instead of 2
   | 'peek_starter' // see the starter card before discarding
@@ -16,6 +18,7 @@ export interface Ability {
   description: string;
   maxStacks: number;
   emoji: string;
+  modes: GameMode[];
 }
 
 export const ALL_ABILITIES: Ability[] = [
@@ -25,6 +28,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'Deal 7 cards; discard 3 to the crib instead of 2.',
     maxStacks: 1,
     emoji: '🃏',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'peek_starter',
@@ -32,6 +36,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'See the starter card before choosing your discards.',
     maxStacks: 1,
     emoji: '👁️',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'swap_one',
@@ -39,6 +44,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'Once per hand, swap one card from your hand with the top of the deck.',
     maxStacks: 2,
     emoji: '🔄',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'steal_crib',
@@ -46,6 +52,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: "When it's the AI's crib, you score it instead.",
     maxStacks: 1,
     emoji: '🦹',
+    modes: ['classic'],
   },
   {
     id: 'double_fifteens',
@@ -53,6 +60,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'Each fifteen combination scores 4 points instead of 2.',
     maxStacks: 1,
     emoji: '⚡',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'run_bonus',
@@ -60,6 +68,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'Each card in a run scores 1 extra point.',
     maxStacks: 2,
     emoji: '🏃',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'lucky_cut',
@@ -67,6 +76,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'Once per hand, you may recut for a new starter card.',
     maxStacks: 1,
     emoji: '🍀',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'go_bonus',
@@ -74,6 +84,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: 'Going go scores 2 points instead of 1.',
     maxStacks: 1,
     emoji: '🎯',
+    modes: ['classic', 'two_hands'],
   },
   {
     id: 'crib_insight',
@@ -81,6 +92,7 @@ export const ALL_ABILITIES: Ability[] = [
     description: "Reveal 1 card from the opponent's crib before scoring.",
     maxStacks: 1,
     emoji: '🔍',
+    modes: ['classic'],
   },
 ];
 
@@ -105,8 +117,14 @@ export function hasAbility(
 }
 
 // Pick 3 random abilities to offer as upgrade choices
-export function rollAbilityChoices(current: UnlockedAbilities, count = 3): Ability[] {
-  const available = ALL_ABILITIES.filter((a) => (current[a.id] ?? 0) < a.maxStacks);
+export function rollAbilityChoices(
+  current: UnlockedAbilities,
+  count = 3,
+  mode: GameMode = 'classic',
+): Ability[] {
+  const available = ALL_ABILITIES.filter(
+    (a) => a.modes.includes(mode) && (current[a.id] ?? 0) < a.maxStacks,
+  );
   // Fisher-Yates shuffle on a copy
   const shuffled = [...available];
   for (let i = shuffled.length - 1; i > 0; i--) {

@@ -1,7 +1,8 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { RunState, ROUND_TARGETS } from '../store/runState';
+import { getModeConfig } from '../game/modes';
 import { ALL_ABILITIES } from '../game/abilities';
+import { RunState } from '../store/runState';
 
 interface RunCompleteScreenProps {
   run: RunState;
@@ -10,6 +11,7 @@ interface RunCompleteScreenProps {
 
 export default function RunCompleteScreen({ run, onStartNewRun }: RunCompleteScreenProps) {
   const unlockedAbilityIds = Object.keys(run.abilities) as (keyof typeof run.abilities)[];
+  const rounds = getModeConfig(run.mode).rounds;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -24,18 +26,18 @@ export default function RunCompleteScreen({ run, onStartNewRun }: RunCompleteScr
       {/* Round Summary */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Round Summary</Text>
-        {ROUND_TARGETS.map((target, idx) => {
+        {rounds.map((round, idx) => {
           const result = run.roundResults[idx];
           return (
             <View key={idx} style={styles.roundRow}>
               <Text style={styles.roundLabel}>
-                Round {idx + 1} (to {target})
+                Round {idx + 1} (to {round.targetScore})
               </Text>
               {result ? (
                 <Text style={[styles.roundResult, result.playerWon ? styles.win : styles.loss]}>
                   {result.playerWon
-                    ? `✓ Win (${result.playerFinalScore} pts)`
-                    : `✗ Loss (${result.playerFinalScore} pts)`}
+                    ? `✓ Win (${result.playerFinalScore}${run.mode === 'classic' ? ' pts' : ' progress'})`
+                    : `✗ Loss (${result.playerFinalScore}${run.mode === 'classic' ? ' pts' : ' progress'})`}
                 </Text>
               ) : (
                 <Text style={styles.roundSkipped}>—</Text>
