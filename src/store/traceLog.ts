@@ -70,7 +70,7 @@ export async function exportTraceEvents(events: TraceEvent[]): Promise<void> {
     link.href = url;
     link.download = filename;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     return;
   }
 

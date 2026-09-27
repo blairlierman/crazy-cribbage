@@ -69,7 +69,15 @@ export default function SettingsButton({ events, onClear }: SettingsButtonProps)
             >
               <Text style={styles.buttonText}>Clear Trace Log</Text>
             </TouchableOpacity>
-            {message && <Text style={styles.message}>{message}</Text>}
+            {message && (
+              <Text
+                accessibilityLiveRegion="polite"
+                accessibilityRole="alert"
+                style={styles.message}
+              >
+                {message}
+              </Text>
+            )}
             <TouchableOpacity
               accessible
               accessibilityRole="button"

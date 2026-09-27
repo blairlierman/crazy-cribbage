@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import { AbilityId } from './src/game/abilities';
 import { getModeConfig, type GameMode } from './src/game/modes';
@@ -25,16 +25,24 @@ export default function App() {
   const [run, setRun] = useState<RunState>(createInitialRunState());
   const [lastResult, setLastResult] = useState<RoundResult | null>(null);
   const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([]);
+  const traceSyncQueue = useRef(Promise.resolve());
   const activeRound = currentRound(run);
 
+  const syncTraceEvents = (operation?: Promise<unknown>) => {
+    const next = traceSyncQueue.current
+      .then(() => operation)
+      .then(() => loadTraceEvents())
+      .then(setTraceEvents);
+    traceSyncQueue.current = next.catch(() => undefined);
+    return traceSyncQueue.current;
+  };
+
   useEffect(() => {
-    loadTraceEvents().then(setTraceEvents);
+    void syncTraceEvents();
   }, []);
 
   const trace = (type: string, details?: object) => {
-    appendTraceEvent(type, details)
-      .then(() => loadTraceEvents())
-      .then(setTraceEvents);
+    void syncTraceEvents(appendTraceEvent(type, details));
   };
 
   const handleStartRun = (mode: GameMode) => {
@@ -73,7 +81,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      <SettingsButton events={traceEvents} onClear={() => loadTraceEvents().then(setTraceEvents)} />
+      <SettingsButton events={traceEvents} onClear={() => syncTraceEvents()} />
       {screen === 'home' && <HomeScreen onStartRun={handleStartRun} onTrace={trace} />}
       {screen === 'game' &&
         (run.mode === 'classic' ? (
