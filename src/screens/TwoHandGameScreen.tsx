@@ -698,6 +698,7 @@ const styles = StyleSheet.create({
   scoreBadge: {
     alignItems: 'flex-end',
     minWidth: 88,
+    marginRight: 44,
   },
   scoreBadgeLabel: {
     color: '#90CAF9',
