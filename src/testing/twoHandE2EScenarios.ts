@@ -21,8 +21,10 @@ export function createTwoHandGameStateForE2E(
   const scenario = globalThis.__CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__;
   globalThis.__CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__ = undefined;
 
-  if (scenario === 'single_go') return buildSingleGoState(abilities, targetScore, boardId, handsLimit);
-  if (scenario === 'double_go') return buildDoubleGoState(abilities, targetScore, boardId, handsLimit);
+  if (scenario === 'single_go')
+    return buildSingleGoState(abilities, targetScore, boardId, handsLimit);
+  if (scenario === 'double_go')
+    return buildDoubleGoState(abilities, targetScore, boardId, handsLimit);
 
   return dealTwoHands(createInitialTwoHandGameState(abilities, targetScore, boardId, handsLimit));
 }
@@ -84,8 +86,8 @@ function buildDoubleGoState(
   boardId: BoardId,
   handsLimit: number,
 ): TwoHandGameState {
-  const topCards = [card('K', 'clubs'), card('9', 'hearts')];
-  const bottomCards = [card('Q', 'diamonds'), card('A', 'spades'), card('K', 'hearts')];
+  const topCards = [card('K', 'clubs'), card('8', 'hearts')];
+  const bottomCards = [card('Q', 'diamonds'), card('2', 'spades'), card('K', 'hearts')];
 
   return {
     ...createBasePeggingState(abilities, targetScore, boardId, handsLimit),
