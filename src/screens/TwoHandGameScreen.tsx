@@ -40,6 +40,7 @@ interface TwoHandGameScreenProps {
   round: RoundConfig;
   mode: GameMode;
   onRoundComplete: (result: RoundResult) => void;
+  onTrace: (type: string, details?: object) => void;
 }
 
 interface AbilityTooltipState {
@@ -53,6 +54,7 @@ export default function TwoHandGameScreen({
   round,
   mode,
   onRoundComplete,
+  onTrace,
 }: TwoHandGameScreenProps) {
   const [game, setGame] = useState<TwoHandGameState>(() =>
     dealTwoHands(
@@ -174,6 +176,7 @@ export default function TwoHandGameScreen({
   }, []);
 
   const toggleSelectCard = (cardId: string) => {
+    onTrace('card_selection', { phase: game.phase, cardId, seat: game.discardSeat });
     setSelectedCards((prev) => {
       if (prev.includes(cardId)) return prev.filter((id) => id !== cardId);
       if (prev.length >= discardCount) return prev;
@@ -182,10 +185,12 @@ export default function TwoHandGameScreen({
   };
 
   const toggleSortOrder = () => {
+    onTrace('sort_hand', { order: handSortOrder === 'suit' ? 'rank' : 'suit' });
     setHandSortOrder((prev) => (prev === 'suit' ? 'rank' : 'suit'));
   };
 
   const deal = () => {
+    onTrace('deal_hand', { handNumber: game.handNumber + 1 });
     setGame((current) => dealTwoHands(current));
     setSelectedCards([]);
     setSwapSelected(null);
@@ -195,6 +200,7 @@ export default function TwoHandGameScreen({
     const seat = game.discardSeat;
     const cards = game[seat].hand.filter((card) => selectedCards.includes(card.id));
     if (cards.length !== discardCount) return;
+    onTrace('discard', { seat, cards: cards.map((card) => card.id) });
     setGame((current) => discardForSeat(current, seat, cards));
     setSelectedCards([]);
   };
@@ -203,6 +209,7 @@ export default function TwoHandGameScreen({
     if (!game.swapSeat) return;
     const seat = game.swapSeat;
     const card = game[seat].hand.find((item) => item.id === swapSelected) ?? null;
+    onTrace('swap', { seat, cardId: card?.id ?? null });
     setGame((current) => swapForSeat(current, seat, card));
     setSwapSelected(null);
   };
@@ -210,11 +217,13 @@ export default function TwoHandGameScreen({
   const playCard = (seat: TwoHandSeat, card: Card) => {
     if (game.phase !== 'pegging' || game.winner !== null || activePeggingSeat !== seat) return;
     if (cardValue(card) + game.pegging.count > 31) return;
+    onTrace('pegging_choice', { seat, cardId: card.id, count: game.pegging.count });
     setGame((current) => playPeggingCard(current, seat, card));
   };
 
   const handlePass = () => {
     if (game.phase !== 'pegging' || game.winner !== null || !activePeggingSeat) return;
+    onTrace('pegging_pass', { seat: activePeggingSeat, count: game.pegging.count });
     setGame((current) => {
       const otherSeat: TwoHandSeat = activePeggingSeat === 'top' ? 'bottom' : 'top';
       if (!canSeatPlay(current, otherSeat)) {
@@ -227,7 +236,7 @@ export default function TwoHandGameScreen({
 
   const handleNext = () => {
     if (game.phase === 'round_over') {
-      onRoundComplete({
+      const result: RoundResult = {
         mode,
         roundIndex,
         targetScore: round.targetScore,
@@ -238,7 +247,9 @@ export default function TwoHandGameScreen({
         handsUsed: game.handNumber,
         handsLimit: round.handsLimit,
         boardProgress: game.board.totalProgress,
-      });
+      };
+      onTrace('round_complete', result);
+      onRoundComplete(result);
       return;
     }
 
@@ -687,6 +698,7 @@ const styles = StyleSheet.create({
   scoreBadge: {
     alignItems: 'flex-end',
     minWidth: 88,
+    marginRight: 44,
   },
   scoreBadgeLabel: {
     color: '#90CAF9',

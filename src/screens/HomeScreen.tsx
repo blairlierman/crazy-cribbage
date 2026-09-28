@@ -4,9 +4,10 @@ import { MODE_CONFIGS, type GameMode } from '../game/modes';
 
 interface HomeScreenProps {
   onStartRun: (mode: GameMode) => void;
+  onTrace: (type: string, details?: object) => void;
 }
 
-export default function HomeScreen({ onStartRun }: HomeScreenProps) {
+export default function HomeScreen({ onStartRun, onTrace }: HomeScreenProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>🃏</Text>
@@ -25,8 +26,13 @@ export default function HomeScreen({ onStartRun }: HomeScreenProps) {
             Win each round to unlock a new <Text style={styles.highlight}>ability</Text>.
           </Text>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={styles.button}
-            onPress={() => onStartRun('classic')}
+            onPress={() => {
+              onTrace('start_run', { mode: 'classic' });
+              onStartRun('classic');
+            }}
             activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>Start Classic Run</Text>
@@ -43,8 +49,13 @@ export default function HomeScreen({ onStartRun }: HomeScreenProps) {
             Clear escalating board targets before you run out of hands to earn permanent upgrades.
           </Text>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={[styles.button, styles.altButton]}
-            onPress={() => onStartRun('two_hands')}
+            onPress={() => {
+              onTrace('start_run', { mode: 'two_hands' });
+              onStartRun('two_hands');
+            }}
             activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>Start Twin Hands Run</Text>
