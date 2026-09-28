@@ -47,7 +47,14 @@ export default function CardView({
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} disabled={disabled} activeOpacity={0.7}>
+      <TouchableOpacity
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${card.rank} of ${card.suit}`}
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={0.7}
+      >
         {inner}
       </TouchableOpacity>
     );

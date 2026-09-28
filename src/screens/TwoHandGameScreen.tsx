@@ -19,7 +19,6 @@ import {
   TwoHandSeat,
   awardGoTwoHands,
   canSeatPlay,
-  createInitialTwoHandGameState,
   dealTwoHands,
   discardForSeat,
   getActivePeggingSeat,
@@ -33,6 +32,7 @@ import {
   swapForSeat,
 } from '../game/twoHandState';
 import { RoundResult } from '../store/runState';
+import { createTwoHandGameStateForE2E } from '../testing/twoHandE2EScenarios';
 
 interface TwoHandGameScreenProps {
   abilities: UnlockedAbilities;
@@ -57,14 +57,7 @@ export default function TwoHandGameScreen({
   onTrace,
 }: TwoHandGameScreenProps) {
   const [game, setGame] = useState<TwoHandGameState>(() =>
-    dealTwoHands(
-      createInitialTwoHandGameState(
-        abilities,
-        round.targetScore,
-        round.boardId!,
-        round.handsLimit!,
-      ),
-    ),
+    createTwoHandGameStateForE2E(abilities, round.targetScore, round.boardId!, round.handsLimit!),
   );
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
