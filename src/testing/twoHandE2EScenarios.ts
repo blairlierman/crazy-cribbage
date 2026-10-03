@@ -7,26 +7,34 @@ import {
   dealTwoHands,
 } from '../game/twoHandState';
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__: 'single_go' | 'double_go' | undefined;
-}
+export type TwoHandE2EScenario = 'single_go' | 'double_go';
 
 export function createTwoHandGameStateForE2E(
   abilities: UnlockedAbilities,
   targetScore: number,
   boardId: BoardId,
   handsLimit: number,
+  scenario: TwoHandE2EScenario | null,
 ): TwoHandGameState {
-  const scenario = globalThis.__CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__;
-  globalThis.__CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__ = undefined;
-
   if (scenario === 'single_go')
     return buildSingleGoState(abilities, targetScore, boardId, handsLimit);
   if (scenario === 'double_go')
     return buildDoubleGoState(abilities, targetScore, boardId, handsLimit);
 
   return dealTwoHands(createInitialTwoHandGameState(abilities, targetScore, boardId, handsLimit));
+}
+
+export function getTwoHandE2EScenarioFromLocation(): TwoHandE2EScenario | null {
+  const search = (globalThis as { location?: { search?: string } }).location?.search;
+  if (!search) return null;
+  const scenario = new URLSearchParams(search).get('twoHandE2EScenario');
+  return scenario === 'single_go' || scenario === 'double_go' ? scenario : null;
+}
+
+export function shouldDisableTwoHandBoardModalForE2E(): boolean {
+  const search = (globalThis as { location?: { search?: string } }).location?.search;
+  if (!search) return false;
+  return new URLSearchParams(search).get('twoHandE2EDisableBoardModal') === '1';
 }
 
 function card(rank: Rank, suit: Suit): Card {

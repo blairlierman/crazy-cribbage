@@ -32,7 +32,11 @@ import {
   swapForSeat,
 } from '../game/twoHandState';
 import { RoundResult } from '../store/runState';
-import { createTwoHandGameStateForE2E } from '../testing/twoHandE2EScenarios';
+import {
+  createTwoHandGameStateForE2E,
+  getTwoHandE2EScenarioFromLocation,
+  shouldDisableTwoHandBoardModalForE2E,
+} from '../testing/twoHandE2EScenarios';
 
 interface TwoHandGameScreenProps {
   abilities: UnlockedAbilities;
@@ -56,13 +60,16 @@ export default function TwoHandGameScreen({
   onRoundComplete,
   onTrace,
 }: TwoHandGameScreenProps) {
-  const autoOpenBoardModal = !(
-    globalThis as typeof globalThis & {
-      __CRAZY_CRIBBAGE_E2E_DISABLE_BOARD_MODAL__?: boolean;
-    }
-  ).__CRAZY_CRIBBAGE_E2E_DISABLE_BOARD_MODAL__;
+  const scenario = getTwoHandE2EScenarioFromLocation();
+  const autoOpenBoardModal = !shouldDisableTwoHandBoardModalForE2E();
   const [game, setGame] = useState<TwoHandGameState>(() =>
-    createTwoHandGameStateForE2E(abilities, round.targetScore, round.boardId!, round.handsLimit!),
+    createTwoHandGameStateForE2E(
+      abilities,
+      round.targetScore,
+      round.boardId!,
+      round.handsLimit!,
+      scenario,
+    ),
   );
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);

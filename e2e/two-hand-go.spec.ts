@@ -1,16 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 async function startTwinHandsScenario(page: Page, scenario: 'single_go' | 'double_go') {
-  await page.addInitScript((scenarioName: 'single_go' | 'double_go') => {
-    const testWindow = window as Window & {
-      __CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__?: 'single_go' | 'double_go';
-      __CRAZY_CRIBBAGE_E2E_DISABLE_BOARD_MODAL__?: boolean;
-    };
-    testWindow.__CRAZY_CRIBBAGE_E2E_TWO_HAND_SCENARIO__ = scenarioName;
-    testWindow.__CRAZY_CRIBBAGE_E2E_DISABLE_BOARD_MODAL__ = true;
-  }, scenario);
-
-  await page.goto('/');
+  await page.goto(`/?twoHandE2EScenario=${scenario}&twoHandE2EDisableBoardModal=1`);
   await page.getByRole('button', { name: 'Start Twin Hands Run' }).click();
   await page.getByRole('button', { name: 'Continue to Play' }).click();
 }
