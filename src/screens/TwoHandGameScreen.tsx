@@ -19,7 +19,6 @@ import {
   TwoHandSeat,
   awardGoTwoHands,
   canSeatPlay,
-  createInitialTwoHandGameState,
   dealTwoHands,
   discardForSeat,
   getActivePeggingSeat,
@@ -33,6 +32,11 @@ import {
   swapForSeat,
 } from '../game/twoHandState';
 import { RoundResult } from '../store/runState';
+import {
+  createTwoHandGameStateForE2E,
+  getTwoHandE2EScenarioFromLocation,
+  shouldDisableTwoHandBoardModalForE2E,
+} from '../testing/twoHandE2EScenarios';
 
 interface TwoHandGameScreenProps {
   abilities: UnlockedAbilities;
@@ -56,14 +60,15 @@ export default function TwoHandGameScreen({
   onRoundComplete,
   onTrace,
 }: TwoHandGameScreenProps) {
+  const scenario = getTwoHandE2EScenarioFromLocation();
+  const autoOpenBoardModal = !shouldDisableTwoHandBoardModalForE2E();
   const [game, setGame] = useState<TwoHandGameState>(() =>
-    dealTwoHands(
-      createInitialTwoHandGameState(
-        abilities,
-        round.targetScore,
-        round.boardId!,
-        round.handsLimit!,
-      ),
+    createTwoHandGameStateForE2E(
+      abilities,
+      round.targetScore,
+      round.boardId!,
+      round.handsLimit!,
+      scenario,
     ),
   );
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
@@ -128,7 +133,7 @@ export default function TwoHandGameScreen({
 
     setBoardAnimating(true);
     setBoardSpotlight(true);
-    if (!showRoundIntro) {
+    if (!showRoundIntro && autoOpenBoardModal) {
       setShowBoardModal(true);
     }
     setBoardPreview(cloneBoard(previousBoard));
@@ -160,7 +165,7 @@ export default function TwoHandGameScreen({
     return () => {
       if (animationRef.current) clearTimeout(animationRef.current);
     };
-  }, [game.board, showRoundIntro]);
+  }, [autoOpenBoardModal, game.board, showRoundIntro]);
 
   useEffect(() => {
     if (game.phase !== 'pegging' || game.winner !== null || !isTwoHandPeggingComplete(game)) return;
@@ -290,7 +295,13 @@ export default function TwoHandGameScreen({
           </View>
           <View style={styles.sectionControls}>
             {seatCanPass && (
-              <TouchableOpacity style={styles.inlineGoBtn} onPress={handlePass}>
+              <TouchableOpacity
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Go!"
+                style={styles.inlineGoBtn}
+                onPress={handlePass}
+              >
                 <Text style={styles.inlineGoBtnText}>Go!</Text>
               </TouchableOpacity>
             )}
@@ -605,6 +616,8 @@ export default function TwoHandGameScreen({
               <BoardView board={displayedBoard} targetScore={round.targetScore} />
             </ScrollView>
             <TouchableOpacity
+              accessible
+              accessibilityRole="button"
               style={styles.boardModalBtn}
               onPress={() => {
                 if (showRoundIntro) {
