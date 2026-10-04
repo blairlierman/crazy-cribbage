@@ -66,11 +66,13 @@ jobs:
             const repo = context.repo.repo;
             const issue_number = context.issue.number;
             const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const artifactsUrl = `${runUrl}#artifacts`;
             const body = [
               marker,
               '## Playwright E2E artifacts',
               '',
               `- Workflow run: [${context.workflow} #${context.runNumber}](${runUrl})`,
+              `- Artifacts: [View artifacts for this run](${artifactsUrl})`,
               '- Artifacts from this run:',
               '  - `playwright-test-results`',
               '  - `playwright-report`',
