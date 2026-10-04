@@ -192,8 +192,11 @@ function buildPeggingScoreState(
     top: { hand: [...topCards], discards: [], score: 0 },
     bottom: { hand: [...bottomCards], discards: [], score: 0 },
     pegging: {
-      pile: [card('5', 'spades')],
-      playedCards: [{ card: card('5', 'spades'), playedBy: 'top' }],
+      pile: [card('5', 'spades'), card('5', 'hearts')],
+      playedCards: [
+        { card: card('5', 'spades'), playedBy: 'top' },
+        { card: card('5', 'hearts'), playedBy: 'bottom' },
+      ],
       count: 10,
       topPassed: false,
       bottomPassed: false,

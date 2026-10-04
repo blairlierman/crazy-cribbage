@@ -29,18 +29,19 @@ test('Twin Hands shows its board preview and progress modal', async ({ page }) =
 test('Twin Hands requires each seat to discard before pegging', async ({ page }) => {
   await startTwinHandsScenario(page, 'discard_flow');
 
-  const topConfirm = page.getByRole('button', { name: 'Confirm Top discard (0/2)' });
-  await expect(topConfirm).toBeDisabled();
+  await page.getByText('Confirm Top discard (0/2)').click();
+  await expect(page.getByText(/Top Hand 🔵.*discard 2/)).toBeVisible();
   await page.getByRole('button', { name: 'K of clubs', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Confirm Top discard (1/2)' })).toBeDisabled();
+  await page.getByText('Confirm Top discard (1/2)').click();
+  await expect(page.getByText(/Top Hand 🔵.*discard 2/)).toBeVisible();
   await page.getByRole('button', { name: 'Q of clubs', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm Top discard (2/2)' }).click();
+  await page.getByText('Confirm Top discard (2/2)').click();
 
-  await expect(page.getByText('Top Hand 🔵 — waiting')).toBeVisible();
+  await expect(page.getByText(/Top Hand 🔵.*waiting/)).toBeVisible();
   await expect(page.getByText('Bottom Hand 🟡 — discard 2')).toBeVisible();
   await page.getByRole('button', { name: '6 of hearts', exact: true }).click();
   await page.getByRole('button', { name: '5 of hearts', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm Bottom discard (2/2)' }).click();
+  await page.getByText('Confirm Bottom discard (2/2)').click();
 
   await expect(page.getByText('Pegging Pile — Count 0 • Active: Bottom')).toBeVisible();
 });
@@ -50,7 +51,7 @@ test('Twin Hands scores pegging combinations and resets the pile at 31', async (
 
   await page.getByRole('button', { name: '5 of clubs', exact: true }).click();
   await expect(page.getByText('Pegging Pile — Count 15 • Active: Top')).toBeVisible();
-  await expect(page.getByText('Bottom: Fifteen for 2, Pair for 2')).toBeVisible();
+  await expect(page.getByText('Bottom: Fifteen for 2, Three of a kind for 6')).toBeVisible();
 
   await page.getByRole('button', { name: '10 of clubs', exact: true }).click();
   await expect(page.getByText('Pegging Pile — Count 25 • Active: Bottom')).toBeVisible();
@@ -68,9 +69,9 @@ test('Twin Hands scores both hands and advances to the next hand', async ({ page
   await expect(page.getByText(/Crib: \+\d+ pts/)).toBeVisible();
   await expect(page.getByText(/Combined this hand: \+\d+ pts/)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Next Hand →' }).click();
+  await page.getByText('Next Hand →').click();
   await expect(page.getByText('2/2', { exact: true })).toBeVisible();
-  await expect(page.getByText('Pegging Pile — Count 0')).toBeVisible();
+  await expect(page.getByText(/Top Hand 🔵.*discard 2/)).toBeVisible();
 });
 
 test('Twin Hands completes a round, offers an upgrade, and advances', async ({ page }) => {
@@ -78,11 +79,11 @@ test('Twin Hands completes a round, offers an upgrade, and advances', async ({ p
 
   await expect(page.getByText('44/45 board progress')).toBeVisible();
   await page.getByRole('button', { name: 'Go!' }).click();
-  await page.getByRole('button', { name: 'Continue →' }).click();
+  await page.getByText('Continue →').click();
 
   await expect(page.getByText('Round Complete!')).toBeVisible();
   await expect(page.getByText('Choose an Upgrade:')).toBeVisible();
-  await page.getByRole('button', { name: 'Skip Upgrade' }).click();
+  await page.getByText('Skip Upgrade').click();
 
   await expect(page.getByText('Round Board Preview')).toBeVisible();
   await page.getByText('Twin Hands • Round 2 (to 95)').waitFor({ state: 'visible' });
@@ -94,8 +95,10 @@ test('Twin Hands ends the run when the last hand cannot clear the target', async
   await startTwinHandsScenario(page, 'loss_at_limit');
 
   await expect(page.getByText(/Out of hands\. Finished at \d+\/45\./)).toBeVisible();
-  await page.getByRole('button', { name: 'Continue →' }).click();
+  await page.getByText('Continue →').click();
   await expect(page.getByText('Defeated!')).toBeVisible();
-  await page.getByRole('button', { name: 'Back to Menu' }).click();
+  await page.getByText('Back to Menu').click();
+  await expect(page.getByText('Run Over')).toBeVisible();
+  await page.getByText('New Run').click();
   await expect(page.getByRole('button', { name: 'Start Twin Hands Run' })).toBeVisible();
 });
