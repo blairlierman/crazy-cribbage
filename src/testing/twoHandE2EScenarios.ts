@@ -45,7 +45,15 @@ export function getTwoHandE2EScenarioFromLocation(): TwoHandE2EScenario | null {
   const search = (globalThis as { location?: { search?: string } }).location?.search;
   if (!search) return null;
   const scenario = new URLSearchParams(search).get('twoHandE2EScenario');
-  return scenario === 'single_go' || scenario === 'double_go' ? scenario : null;
+  return scenario === 'single_go' ||
+    scenario === 'double_go' ||
+    scenario === 'discard_flow' ||
+    scenario === 'pegging_score' ||
+    scenario === 'show_progression' ||
+    scenario === 'winning_go' ||
+    scenario === 'loss_at_limit'
+    ? scenario
+    : null;
 }
 
 export function shouldDisableTwoHandBoardModalForE2E(): boolean {
@@ -204,8 +212,18 @@ function buildShowState(
   handsLimit: number,
   handNumber: number,
 ): TwoHandGameState {
-  const topCards = [card('5', 'hearts'), card('6', 'hearts'), card('7', 'hearts'), card('8', 'hearts')];
-  const bottomCards = [card('2', 'clubs'), card('3', 'clubs'), card('4', 'clubs'), card('K', 'hearts')];
+  const topCards = [
+    card('5', 'hearts'),
+    card('6', 'hearts'),
+    card('7', 'hearts'),
+    card('8', 'hearts'),
+  ];
+  const bottomCards = [
+    card('2', 'clubs'),
+    card('3', 'clubs'),
+    card('4', 'clubs'),
+    card('K', 'hearts'),
+  ];
 
   return {
     ...createBasePeggingState(abilities, targetScore, boardId, handsLimit),

@@ -2,17 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function startTwinHandsScenario(
   page: Page,
-  scenario:
-    | 'discard_flow'
-    | 'pegging_score'
-    | 'show_progression'
-    | 'winning_go'
-    | 'loss_at_limit',
+  scenario: 'discard_flow' | 'pegging_score' | 'show_progression' | 'winning_go' | 'loss_at_limit',
   disableBoardModal = true,
 ) {
   const boardModalParam = disableBoardModal ? '&twoHandE2EDisableBoardModal=1' : '';
   await page.goto(`/?twoHandE2EScenario=${scenario}${boardModalParam}`);
   await page.getByRole('button', { name: 'Start Twin Hands Run' }).click();
+  await page.getByRole('button', { name: 'Continue to Play' }).click();
 }
 
 test('Twin Hands shows its board preview and progress modal', async ({ page }) => {
@@ -25,9 +21,9 @@ test('Twin Hands shows its board preview and progress modal', async ({ page }) =
 
   await expect(page.getByText('Twin Hands • Round 1 (to 45)')).toBeVisible();
   await page.getByRole('button', { name: 'Open board progress' }).click();
-  await expect(page.getByText('Board Progress')).toBeVisible();
+  await expect(page.getByText('Board Progress', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).click();
-  await expect(page.getByText('Board Progress')).not.toBeVisible();
+  await expect(page.getByText('Board Progress', { exact: true })).not.toBeVisible();
 });
 
 test('Twin Hands requires each seat to discard before pegging', async ({ page }) => {
