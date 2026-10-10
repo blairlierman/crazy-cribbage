@@ -57,7 +57,7 @@ export default function GameScreen({
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('suit');
+  const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('rank');
   const aiThinkingRef = useRef(false);
 
   const discardCount = hasAbility(abilities, 'extra_discard') ? 3 : 2;
