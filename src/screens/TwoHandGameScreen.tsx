@@ -73,7 +73,7 @@ export default function TwoHandGameScreen({
   );
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
-  const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('suit');
+  const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('rank');
   const [boardPreview, setBoardPreview] = useState<BoardState>(() => cloneBoard(game.board));
   const [boardAnimating, setBoardAnimating] = useState(false);
   const [boardSpotlight, setBoardSpotlight] = useState(false);
