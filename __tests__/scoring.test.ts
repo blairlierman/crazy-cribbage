@@ -199,6 +199,13 @@ describe('scorePegging', () => {
     );
     expect(sixteen.total).toBe(2);
 
+    const partnerPegging = scorePegging(
+      [makeCard('2'), makeCard('9', 'hearts')],
+      makeCard('9', 'hearts'),
+      { '2-spades': 'best_hand_ever' },
+    );
+    expect(partnerPegging.total).toBe(2);
+
     const fourCardRun = scorePegging(
       [makeCard('4'), makeCard('5', 'hearts'), makeCard('6', 'clubs'), makeCard('7', 'diamonds')],
       makeCard('7', 'diamonds'),

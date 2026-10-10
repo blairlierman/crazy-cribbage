@@ -17,6 +17,17 @@ async function startTwinHandsScenario(
     .first()
     .click();
   await page.getByRole('button', { name: 'Continue to Play' }).click();
+  if (scenario === 'show_progression' || scenario === 'loss_at_limit') {
+    await expect(page.getByText('Halfway Reward')).toBeVisible();
+    await page
+      .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: /^Choose .+:/ })
+      .first()
+      .click();
+  }
 }
 
 test('run-start card reward allows browsing and choosing an improvement', async ({ page }) => {

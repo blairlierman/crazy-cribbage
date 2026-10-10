@@ -46,7 +46,12 @@ export default function CardImprovementPicker({
               <Text style={styles.improvementDescription}>{improvement.description}</Text>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.backButton} onPress={() => setSelected(null)}>
+          <TouchableOpacity
+            accessible
+            accessibilityRole="button"
+            style={styles.backButton}
+            onPress={() => setSelected(null)}
+          >
             <Text style={styles.buttonText}>Choose a different card</Text>
           </TouchableOpacity>
         </>

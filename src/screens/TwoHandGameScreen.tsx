@@ -97,6 +97,7 @@ export default function TwoHandGameScreen({
   const [showRoundIntro, setShowRoundIntro] = useState(true);
   const [abilityTooltip, setAbilityTooltip] = useState<AbilityTooltipState | null>(null);
   const [midpointRewardShown, setMidpointRewardShown] = useState(false);
+  const [midpointRewardPending, setMidpointRewardPending] = useState(false);
   const [midpointRewardCards, setMidpointRewardCards] = useState<Card[]>([]);
   const [showMidpointReward, setShowMidpointReward] = useState(false);
   const [pendingBlackjackCard, setPendingBlackjackCard] = useState<Card | null>(null);
@@ -141,14 +142,24 @@ export default function TwoHandGameScreen({
     const crossedHalfway =
       previousProgressRef.current < round.targetScore / 2 && progress >= round.targetScore / 2;
     previousProgressRef.current = progress;
-    if (!crossedHalfway || midpointRewardShown) return;
+    if (crossedHalfway && !midpointRewardShown) setMidpointRewardPending(true);
+    if (showRoundIntro || (!crossedHalfway && !midpointRewardPending) || midpointRewardShown)
+      return;
 
     setMidpointRewardShown(true);
+    setMidpointRewardPending(false);
     const choices = rollCardImprovementChoices(cardImprovements);
     midpointRewardPendingRef.current = choices.length > 0;
     setMidpointRewardCards(choices);
     setShowMidpointReward(choices.length > 0);
-  }, [cardImprovements, game.board.totalProgress, midpointRewardShown, round.targetScore]);
+  }, [
+    cardImprovements,
+    game.board.totalProgress,
+    midpointRewardPending,
+    midpointRewardShown,
+    round.targetScore,
+    showRoundIntro,
+  ]);
 
   useEffect(() => {
     const previousBoard = previousBoardRef.current;

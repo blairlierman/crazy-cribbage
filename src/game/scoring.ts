@@ -259,12 +259,19 @@ export function scorePegging(
     ['kids_these_days', '6'],
   ];
   for (const [id, partnerRank] of partnerImprovements) {
-    const improvedCard = pile.find((card) => getCardImprovement(improvements, card)?.id === id);
-    const improvedCardPlayed = improvedCard?.id === justPlayed.id;
-    const partnerPlayed = justPlayed.rank === partnerRank;
-    const pair = pile.some((card) => card.id !== justPlayed.id && card.rank === partnerRank);
-    if (improvedCard && ((improvedCardPlayed && pair) || (!improvedCardPlayed && partnerPlayed))) {
-      add(2, `${getCardImprovement(improvements, improvedCard)!.name} (+2)`);
+    const improvedCards = pile.filter((card) => getCardImprovement(improvements, card)?.id === id);
+    const pairCount =
+      justPlayed.rank === partnerRank
+        ? improvedCards.filter((card) => card.id !== justPlayed.id).length
+        : getCardImprovement(improvements, justPlayed)?.id === id
+          ? pile.filter((card) => card.id !== justPlayed.id && card.rank === partnerRank).length
+          : 0;
+    const scoringCard = improvedCards.find((card) => card.id === justPlayed.id) ?? improvedCards[0];
+    if (pairCount > 0 && scoringCard) {
+      add(
+        pairCount * 2,
+        `${getCardImprovement(improvements, scoringCard)!.name} (+${pairCount * 2})`,
+      );
     }
   }
 
