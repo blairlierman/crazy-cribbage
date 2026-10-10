@@ -8,12 +8,53 @@ async function startTwinHandsScenario(
   const boardModalParam = disableBoardModal ? '&twoHandE2EDisableBoardModal=1' : '';
   await page.goto(`/?twoHandE2EScenario=${scenario}${boardModalParam}`);
   await page.getByRole('button', { name: 'Start Twin Hands Run' }).click();
+  await page
+    .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+    .first()
+    .click();
+  await page
+    .getByRole('button', { name: /^Choose .+:/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Continue to Play' }).click();
 }
+
+test('run-start card reward allows browsing and choosing an improvement', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start Classic Run' }).click();
+
+  await expect(page.getByText('Run Started!')).toBeVisible();
+  await page
+    .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+    .first()
+    .click();
+  await expect(page.getByText('Choose an improvement')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Choose .+:/ })).toHaveCount(2);
+  await page.getByRole('button', { name: 'Choose a different card' }).click();
+  await expect(page.getByText('Choose one of these cards')).toBeVisible();
+
+  await page
+    .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+    .nth(1)
+    .click();
+  await page
+    .getByRole('button', { name: /^Choose .+:/ })
+    .first()
+    .click();
+  await expect(page.getByText('Round 1 (to 31)')).toBeVisible();
+});
 
 test('Twin Hands shows its board preview and progress modal', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Start Twin Hands Run' }).click();
+  await page
+    .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+    .first()
+    .click();
+  await page
+    .getByRole('button', { name: /^Choose .+:/ })
+    .first()
+    .click();
 
   await expect(page.getByText('Round Board Preview')).toBeVisible();
   await expect(page.getByText(/Reach 45 board progress/)).toBeVisible();

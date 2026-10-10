@@ -2,6 +2,13 @@ import { UnlockedAbilities, abilityStacks, hasAbility } from './abilities';
 import { applyBoardScore, BoardState, createBoardState } from './boards';
 import { Card, cardValue, createDeck, shuffle } from './cards';
 import { scoreHand, scorePegging } from './scoring';
+import {
+  CardImprovements,
+  canPlayPeggingCard,
+  getPeggingCard,
+  getPeggingValue,
+  stealRobberPoints,
+} from './cardImprovements';
 
 export type TwoHandSeat = 'top' | 'bottom';
 export type TwoHandPhase =
@@ -20,6 +27,7 @@ export interface TwoHandPlayedCard {
 
 export interface TwoHandPeggingState {
   pile: Card[];
+  pileValues?: number[];
   playedCards: TwoHandPlayedCard[];
   count: number;
   topPassed: boolean;
@@ -61,6 +69,7 @@ export interface TwoHandGameState {
   pegging: TwoHandPeggingState;
   handResult: TwoHandHandResult | null;
   abilities: UnlockedAbilities;
+  cardImprovements: CardImprovements;
   swapsLeft: Record<TwoHandSeat, number>;
   luckyRerollAvailable: boolean;
   targetScore: number;
@@ -77,6 +86,7 @@ export function createInitialTwoHandGameState(
   targetScore: number,
   boardId: BoardState['boardId'],
   handsLimit: number,
+  cardImprovements: CardImprovements = {},
 ): TwoHandGameState {
   return {
     deck: [],
@@ -91,6 +101,7 @@ export function createInitialTwoHandGameState(
     pegging: createPeggingState('top'),
     handResult: null,
     abilities,
+    cardImprovements,
     swapsLeft: { top: 0, bottom: 0 },
     luckyRerollAvailable: false,
     targetScore,
@@ -106,6 +117,7 @@ export function createInitialTwoHandGameState(
 function createPeggingState(dealer: TwoHandSeat): TwoHandPeggingState {
   return {
     pile: [],
+    pileValues: [],
     playedCards: [],
     count: 0,
     topPassed: false,
@@ -274,23 +286,32 @@ export function getActivePeggingSeat(state: TwoHandGameState): TwoHandSeat {
 
 export function canSeatPlay(state: TwoHandGameState, seat: TwoHandSeat): boolean {
   const cards = seat === 'top' ? state.pegging.topCards : state.pegging.bottomCards;
-  return cards.some((c) => cardValue(c) + state.pegging.count <= 31);
+  return cards.some((card) =>
+    canPlayPeggingCard(card, state.pegging.count, state.cardImprovements),
+  );
 }
 
 export function playPeggingCard(
   state: TwoHandGameState,
   seat: TwoHandSeat,
   card: Card,
+  blackjackValue = 1,
 ): TwoHandGameState {
   const pegging = state.pegging;
   const cards = seat === 'top' ? pegging.topCards : pegging.bottomCards;
   if (!cards.some((c) => c.id === card.id)) return state;
-  if (cardValue(card) + pegging.count > 31) return state;
+  const value = getPeggingValue(card, state.cardImprovements, blackjackValue);
+  if (value + pegging.count > 31) return state;
 
-  const newPile = [...pegging.pile, card];
-  const newCount = pegging.count + cardValue(card);
+  const playedCard = getPeggingCard(card, state.cardImprovements);
+  const newPile = [...pegging.pile, playedCard];
+  const newPileValues = [
+    ...(pegging.pileValues ?? pegging.pile.map((item) => cardValue(item))),
+    value,
+  ];
+  const newCount = pegging.count + value;
   const remainingCards = cards.filter((c) => c.id !== card.id);
-  const score = scorePegging(newPile, card);
+  const score = scorePegging(newPile, playedCard, state.cardImprovements, newPileValues);
   const log = [...state.peggingLog];
   if (score.details.length > 0) {
     log.push(`${seat === 'top' ? 'Top' : 'Bottom'}: ${score.details.join(', ')}`);
@@ -305,7 +326,8 @@ export function playPeggingCard(
   let newPegging: TwoHandPeggingState = {
     ...pegging,
     pile: newPile,
-    playedCards: [...pegging.playedCards, { card, playedBy: seat }],
+    pileValues: newPileValues,
+    playedCards: [...pegging.playedCards, { card: playedCard, playedBy: seat }],
     count: newCount,
     topCards: seat === 'top' ? remainingCards : pegging.topCards,
     bottomCards: seat === 'bottom' ? remainingCards : pegging.bottomCards,
@@ -314,11 +336,29 @@ export function playPeggingCard(
     lastToPlay: seat,
   };
 
+  const otherSeat: TwoHandSeat = seat === 'top' ? 'bottom' : 'top';
+  const stolen = stealRobberPoints(
+    card,
+    pegging[otherSeat === 'top' ? 'topCards' : 'bottomCards'],
+    state[otherSeat].score,
+    state.cardImprovements,
+  );
+  if (stolen > 0)
+    log.push(`Robber steals ${stolen} point${stolen === 1 ? '' : 's'} from ${otherSeat}`);
+  if (seat === 'top') {
+    topScore += stolen;
+    bottomScore -= stolen;
+  } else {
+    bottomScore += stolen;
+    topScore -= stolen;
+  }
+
   if (newCount === 31) {
     log.push(`${seat === 'top' ? 'Top' : 'Bottom'} plays to 31!`);
     newPegging = {
       ...newPegging,
       pile: [],
+      pileValues: [],
       count: 0,
       topPassed: false,
       bottomPassed: false,
@@ -379,6 +419,7 @@ export function resetTwoHandPegging(
     pegging: {
       ...state.pegging,
       pile: [],
+      pileValues: [],
       count: 0,
       topPassed: false,
       bottomPassed: false,
@@ -429,7 +470,7 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
   let cribBreakdown: string[] = [];
 
   const scoreSeatHand = (seat: TwoHandSeat) => {
-    const base = scoreHand(state[seat].hand, state.starter!, false);
+    const base = scoreHand(state[seat].hand, state.starter!, false, state.cardImprovements);
     const pts = applyBonuses(base);
     const breakdown = base.breakdown.map((item) => item.description);
     if (seat === 'top') {
@@ -446,7 +487,7 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
   scoreSeatHand(nonDealer);
   scoreSeatHand(dealer);
 
-  const baseCrib = scoreHand(state.crib, state.starter, true);
+  const baseCrib = scoreHand(state.crib, state.starter, true, state.cardImprovements);
   crib = applyBonuses(baseCrib);
   cribBreakdown = baseCrib.breakdown.map((item) => item.description);
   if (dealer === 'top') topScore += crib;

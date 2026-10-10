@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,10 +30,23 @@ import {
 import { UnlockedAbilities, hasAbility } from '../game/abilities';
 import { GameMode, RoundConfig } from '../game/modes';
 import { scorePegging } from '../game/scoring';
+import {
+  CardImprovementId,
+  CardImprovements,
+  canPlayPeggingCard,
+  getCardImprovement,
+  getPeggingCard,
+  getPlayablePeggingValues,
+  rollCardImprovementChoices,
+  stealRobberPoints,
+} from '../game/cardImprovements';
+import CardImprovementPicker from '../components/CardImprovementPicker';
 import { RoundResult } from '../store/runState';
 
 interface GameScreenProps {
   abilities: UnlockedAbilities;
+  cardImprovements: CardImprovements;
+  onChooseCardImprovement: (card: Card, improvementId: CardImprovementId) => void;
   roundIndex: number;
   round: RoundConfig;
   mode: GameMode;
@@ -41,6 +56,8 @@ interface GameScreenProps {
 
 export default function GameScreen({
   abilities,
+  cardImprovements,
+  onChooseCardImprovement,
   roundIndex,
   round,
   mode,
@@ -51,14 +68,20 @@ export default function GameScreen({
   const { width } = useWindowDimensions();
   const wideLayout = width >= 600;
   const [game, setGame] = useState<GameState>(() => {
-    const s = createInitialGameState(abilities, target, 'player');
+    const s = createInitialGameState(abilities, target, 'player', cardImprovements);
     return dealHands(s);
   });
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [swapSelected, setSwapSelected] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [handSortOrder, setHandSortOrder] = useState<'suit' | 'rank'>('rank');
+  const [midpointRewardShown, setMidpointRewardShown] = useState(false);
+  const [midpointRewardCards, setMidpointRewardCards] = useState<Card[]>([]);
+  const [showMidpointReward, setShowMidpointReward] = useState(false);
+  const [pendingBlackjackCard, setPendingBlackjackCard] = useState<Card | null>(null);
   const aiThinkingRef = useRef(false);
+  const previousPlayerScoreRef = useRef(game.player.score);
+  const midpointRewardPendingRef = useRef(false);
 
   const discardCount = hasAbility(abilities, 'extra_discard') ? 3 : 2;
   const sortedPlayerHand = useMemo(
@@ -69,6 +92,18 @@ export default function GameScreen({
       ),
     [game.phase, game.pegging.playerCards, game.player.hand, handSortOrder],
   );
+
+  useEffect(() => {
+    const crossedHalfway =
+      previousPlayerScoreRef.current < target / 2 && game.player.score >= target / 2;
+    previousPlayerScoreRef.current = game.player.score;
+    if (midpointRewardShown || !crossedHalfway) return;
+    setMidpointRewardShown(true);
+    const choices = rollCardImprovementChoices(cardImprovements);
+    midpointRewardPendingRef.current = choices.length > 0;
+    setMidpointRewardCards(choices);
+    setShowMidpointReward(choices.length > 0);
+  }, [cardImprovements, game.player.score, midpointRewardShown, target]);
 
   // ─── Deal a fresh hand ───────────────────────────────────────────────
   const deal = useCallback(() => {
@@ -87,7 +122,7 @@ export default function GameScreen({
 
     const timer = setTimeout(() => {
       setGame((g) => {
-        const aiDiscards = aiChooseDiscards(g.ai.hand, g.starter);
+        const aiDiscards = aiChooseDiscards(g.ai.hand, g.starter, g.cardImprovements);
         const newAiHand = g.ai.hand.filter((c) => !aiDiscards.some((d) => d.id === c.id));
         const crib = [...g.crib, ...aiDiscards];
         return {
@@ -104,13 +139,18 @@ export default function GameScreen({
 
   // ─── AI Pegging ──────────────────────────────────────────────────────
   useEffect(() => {
+    if (midpointRewardPendingRef.current || showMidpointReward) return;
     if (game.phase !== 'pegging') return;
     if (game.winner) return;
     const pegging = game.pegging;
 
     // It's AI's turn: player just played (or passed), AI needs to respond
-    const playerCanPlay = pegging.playerCards.some((c) => cardValue(c) + pegging.count <= 31);
-    const aiCanPlay = pegging.aiCards.some((c) => cardValue(c) + pegging.count <= 31);
+    const playerCanPlay = pegging.playerCards.some((card) =>
+      canPlayPeggingCard(card, pegging.count, game.cardImprovements),
+    );
+    const aiCanPlay = pegging.aiCards.some((card) =>
+      canPlayPeggingCard(card, pegging.count, game.cardImprovements),
+    );
 
     // Determine if we're waiting on AI
     const lastWasPlayer = pegging.lastToPlay === 'player' || pegging.lastToPlay === null;
@@ -125,22 +165,36 @@ export default function GameScreen({
     const timer = setTimeout(() => {
       setGame((g) => {
         const p = g.pegging;
-        const aiCard = aiChoosePeggingCard(p.aiCards, p.count, p.pile);
+        const aiChoice = aiChoosePeggingCard(p.aiCards, p.count, p.pile, g.cardImprovements);
 
-        if (aiCard) {
-          const newPile = [...p.pile, aiCard];
-          const newCount = p.count + cardValue(aiCard);
+        if (aiChoice) {
+          const { card: aiCard, value } = aiChoice;
+          const playedCard = getPeggingCard(aiCard, g.cardImprovements);
+          const pileValues = [...(p.pileValues ?? p.pile.map((item) => cardValue(item))), value];
+          const newPile = [...p.pile, playedCard];
+          const newCount = p.count + value;
           const newAiCards = p.aiCards.filter((c) => c.id !== aiCard.id);
-          const newPlayedCards = [...p.playedCards, { card: aiCard, playedBy: 'ai' as const }];
-          const score = scorePegging(newPile, aiCard);
+          const newPlayedCards = [...p.playedCards, { card: playedCard, playedBy: 'ai' as const }];
+          const score = scorePegging(newPile, playedCard, g.cardImprovements, pileValues);
           const log = [...g.peggingLog];
           if (score.details.length > 0) {
             log.push(`AI: ${score.details.join(', ')}`);
           }
-          let aiScore = g.ai.score + score.total;
+          const stolen = stealRobberPoints(
+            aiCard,
+            p.playerCards,
+            g.player.score,
+            g.cardImprovements,
+          );
+          if (stolen > 0) {
+            log.push(`Robber steals ${stolen} point${stolen === 1 ? '' : 's'} from Player`);
+          }
+          const aiScore = g.ai.score + score.total + stolen;
+          const playerScore = g.player.score - stolen;
           let newPegging = {
             ...p,
             pile: newPile,
+            pileValues,
             playedCards: newPlayedCards,
             count: newCount,
             aiCards: newAiCards,
@@ -151,6 +205,7 @@ export default function GameScreen({
             newPegging = {
               ...newPegging,
               pile: [],
+              pileValues: [],
               count: 0,
               playerPassed: false,
               aiPassed: false,
@@ -159,17 +214,23 @@ export default function GameScreen({
           }
           let updated = {
             ...g,
+            player: { ...g.player, score: playerScore },
             ai: { ...g.ai, score: aiScore },
             pegging: newPegging,
             peggingLog: log,
           };
-          if (aiScore >= g.targetScore)
+          if (playerScore >= g.targetScore) {
+            updated = { ...updated, winner: 'player', phase: 'round_over' as const };
+          } else if (aiScore >= g.targetScore) {
             updated = { ...updated, winner: 'ai', phase: 'round_over' as const };
+          }
           aiThinkingRef.current = false;
           return updated;
         } else {
           // AI cannot play
-          const playerCanPlayNow = p.playerCards.some((c) => cardValue(c) + p.count <= 31);
+          const playerCanPlayNow = p.playerCards.some((card) =>
+            canPlayPeggingCard(card, p.count, g.cardImprovements),
+          );
           if (!playerCanPlayNow) {
             // Both can't play: go to last player, reset pile
             const recipient = p.lastToPlay ?? 'player';
@@ -185,7 +246,10 @@ export default function GameScreen({
       });
     }, 800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      aiThinkingRef.current = false;
+    };
   }, [
     game.pegging.lastToPlay,
     game.pegging.playerPassed,
@@ -194,10 +258,12 @@ export default function GameScreen({
     game.pegging.pileResetCount,
     game.phase,
     game.winner,
+    showMidpointReward,
   ]);
 
   // ─── Check pegging complete → show ──────────────────────────────────
   useEffect(() => {
+    if (midpointRewardPendingRef.current || showMidpointReward) return;
     if (game.phase !== 'pegging') return;
     if (game.winner) return;
     const { playerCards, aiCards } = game.pegging;
@@ -208,7 +274,7 @@ export default function GameScreen({
       setGame(scored);
       setShowResult(true);
     }
-  }, [game.pegging.playerCards, game.pegging.aiCards]);
+  }, [game.pegging.playerCards, game.pegging.aiCards, showMidpointReward]);
 
   // ─── Handle player card selection during discard ─────────────────────
   const toggleSelectCard = (cardId: string) => {
@@ -242,14 +308,23 @@ export default function GameScreen({
   };
 
   // ─── Play a pegging card ──────────────────────────────────────────────
-  const playCard = (card: Card) => {
+  const playCard = (card: Card, blackjackValue?: number) => {
     if (game.phase !== 'pegging') return;
     if (game.winner) return;
     if (game.pegging.lastToPlay === 'player') return;
-    const canPlay = cardValue(card) + game.pegging.count <= 31;
+    const canPlay = getPlayablePeggingValues(card, cardImprovements).some(
+      (value) => game.pegging.count + value <= 31,
+    );
     if (!canPlay) return;
+    if (
+      blackjackValue === undefined &&
+      getCardImprovement(cardImprovements, card)?.id === 'blackjack'
+    ) {
+      setPendingBlackjackCard(card);
+      return;
+    }
     onTrace('pegging_choice', { cardId: card.id, count: game.pegging.count });
-    setGame((g) => playerPlayCard(g, card));
+    setGame((g) => playerPlayCard(g, card, blackjackValue));
   };
 
   // ─── Player passes ───────────────────────────────────────────────────
@@ -257,7 +332,9 @@ export default function GameScreen({
     onTrace('pegging_pass', { count: game.pegging.count });
     setGame((g) => {
       const p = g.pegging;
-      const aiCanPlay = p.aiCards.some((c) => cardValue(c) + p.count <= 31);
+      const aiCanPlay = p.aiCards.some((card) =>
+        canPlayPeggingCard(card, p.count, g.cardImprovements),
+      );
       if (!aiCanPlay) {
         // Both can't play; last player who played gets go
         const recipient = p.lastToPlay ?? 'ai';
@@ -292,10 +369,30 @@ export default function GameScreen({
     deal();
   };
 
+  const completeMidpointReward = (card: Card, improvementId: CardImprovementId) => {
+    setGame((current) => ({
+      ...current,
+      cardImprovements: { ...current.cardImprovements, [card.id]: improvementId },
+    }));
+    onChooseCardImprovement(card, improvementId);
+    midpointRewardPendingRef.current = false;
+    setShowMidpointReward(false);
+  };
+
+  const chooseBlackjackValue = (value: number) => {
+    if (pendingBlackjackCard) playCard(pendingBlackjackCard, value);
+    setPendingBlackjackCard(null);
+  };
+
   const isPlayerTurn = game.phase === 'pegging' && game.pegging.lastToPlay !== 'player';
 
   const canPlayerPlay =
-    isPlayerTurn && game.pegging.playerCards.some((c) => cardValue(c) + game.pegging.count <= 31);
+    isPlayerTurn &&
+    game.pegging.playerCards.some((card) =>
+      getPlayablePeggingValues(card, cardImprovements).some(
+        (value) => value + game.pegging.count <= 31,
+      ),
+    );
 
   const canPlayerPass = isPlayerTurn && !canPlayerPlay && game.pegging.playerCards.length > 0;
 
@@ -329,7 +426,14 @@ export default function GameScreen({
             </Text>
             <View style={styles.row}>
               {showResult || game.phase === 'show' || game.phase === 'round_over'
-                ? game.ai.hand.map((c) => <CardView key={c.id} card={c} small />)
+                ? game.ai.hand.map((c) => (
+                    <CardView
+                      key={c.id}
+                      card={c}
+                      improvement={getCardImprovement(cardImprovements, c)}
+                      small
+                    />
+                  ))
                 : game.ai.hand.map((c) => <CardView key={c.id} card={c} faceDown small />)}
             </View>
             {(showResult || game.phase === 'show' || game.phase === 'round_over') &&
@@ -353,6 +457,7 @@ export default function GameScreen({
                   <CardView
                     key={c.id + '-crib'}
                     card={c}
+                    improvement={getCardImprovement(cardImprovements, c)}
                     small
                     faceDown={game.phase === 'pegging'}
                   />
@@ -381,7 +486,11 @@ export default function GameScreen({
                       key={c.id + '-pile'}
                       style={byAi ? styles.pileCardAi : styles.pileCardPlayer}
                     >
-                      <CardView card={c} small />
+                      <CardView
+                        card={c}
+                        improvement={getCardImprovement(cardImprovements, c)}
+                        small
+                      />
                     </View>
                   );
                 })
@@ -409,7 +518,11 @@ export default function GameScreen({
                 <Text style={styles.sectionLabel}>Starter</Text>
                 <View style={styles.starterInlineRow}>
                   {game.starter ? (
-                    <CardView card={game.starter} small />
+                    <CardView
+                      card={game.starter}
+                      improvement={getCardImprovement(cardImprovements, game.starter)}
+                      small
+                    />
                   ) : (
                     <View style={styles.starterPlaceholder}>
                       <Text style={styles.placeholderText}>?</Text>
@@ -469,10 +582,11 @@ export default function GameScreen({
                   <CardView
                     key={c.id}
                     card={c}
+                    improvement={getCardImprovement(cardImprovements, c)}
                     selected={isSelected || isSwapSelected}
                     disabled={
                       game.phase === 'pegging' &&
-                      (cardValue(c) + game.pegging.count > 31 ||
+                      (!canPlayPeggingCard(c, game.pegging.count, cardImprovements) ||
                         game.pegging.lastToPlay === 'player')
                     }
                     onPress={
@@ -505,6 +619,7 @@ export default function GameScreen({
                   <CardView
                     key={c.id + '-crib'}
                     card={c}
+                    improvement={getCardImprovement(cardImprovements, c)}
                     small
                     faceDown={game.phase === 'pegging'}
                   />
@@ -602,11 +717,81 @@ export default function GameScreen({
           </View>
         )}
       </ScrollView>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showMidpointReward}
+        onRequestClose={() => undefined}
+      >
+        <View style={styles.rewardModal}>
+          <CardImprovementPicker
+            cards={midpointRewardCards}
+            title="Halfway Reward"
+            subtitle="Choose a card and one improvement for the rest of this run."
+            onChoose={completeMidpointReward}
+          />
+        </View>
+      </Modal>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={pendingBlackjackCard !== null}
+        onRequestClose={() => setPendingBlackjackCard(null)}
+      >
+        <Pressable style={styles.blackjackOverlay}>
+          <View style={styles.blackjackBox}>
+            <Text style={styles.blackjackTitle}>Blackjack</Text>
+            <Text style={styles.blackjackDescription}>Choose this Ace's value for pegging.</Text>
+            {[1, 11].map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.btn, game.pegging.count + value > 31 && styles.btnDisabled]}
+                disabled={game.pegging.count + value > 31}
+                onPress={() => chooseBlackjackValue(value)}
+              >
+                <Text style={styles.btnText}>Count as {value}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.btn, styles.btnSecondary]}
+              onPress={() => setPendingBlackjackCard(null)}
+            >
+              <Text style={styles.btnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  rewardModal: {
+    flex: 1,
+    backgroundColor: '#0d1b2a',
+  },
+  blackjackOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  blackjackBox: {
+    backgroundColor: '#1a237e',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  blackjackTitle: {
+    color: '#FFD700',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  blackjackDescription: {
+    color: '#E3F2FD',
+    marginBottom: 12,
+  },
   container: {
     flex: 1,
     backgroundColor: '#1B5E20',

@@ -1,4 +1,4 @@
-import { Card, Rank, createDeck } from './cards';
+import { Card, Rank, cardValue, createDeck } from './cards';
 
 export type CardImprovementId =
   | 'round_robin'
@@ -109,17 +109,69 @@ export function getCardImprovement(
   card: Card,
 ): CardImprovement | null {
   const id = improvements?.[card.id];
-  return id ? Object.values(CARD_IMPROVEMENTS).flat().find((item) => item.id === id) ?? null : null;
+  return id
+    ? (Object.values(CARD_IMPROVEMENTS)
+        .flat()
+        .find((item) => item.id === id) ?? null)
+    : null;
 }
 
 export function getCardImprovementById(id: CardImprovementId): CardImprovement {
-  return Object.values(CARD_IMPROVEMENTS).flat().find((item) => item.id === id)!;
+  return Object.values(CARD_IMPROVEMENTS)
+    .flat()
+    .find((item) => item.id === id)!;
 }
 
-export function rollCardImprovementChoices(
+export function getPeggingCard(card: Card, improvements: CardImprovements): Card {
+  return getCardImprovement(improvements, card)?.id === 'uno_reverse'
+    ? { ...card, rank: '6' }
+    : card;
+}
+
+export function getPeggingValue(
+  card: Card,
   improvements: CardImprovements,
-  count = 3,
-): Card[] {
+  blackjackValue = 1,
+): number {
+  const improvement = getCardImprovement(improvements, card)?.id;
+  if (improvement === 'put_me_in_coach') return 5;
+  if (improvement === 'uno_reverse') return 6;
+  if (improvement === 'blackjack') return blackjackValue;
+  return cardValue(card);
+}
+
+export function getPlayablePeggingValues(card: Card, improvements: CardImprovements): number[] {
+  return getCardImprovement(improvements, card)?.id === 'blackjack'
+    ? [1, 11]
+    : [getPeggingValue(card, improvements)];
+}
+
+export function canPlayPeggingCard(
+  card: Card,
+  count: number,
+  improvements: CardImprovements,
+): boolean {
+  return getPlayablePeggingValues(card, improvements).some((value) => count + value <= 31);
+}
+
+export function stealRobberPoints(
+  card: Card,
+  opposingCards: Card[],
+  opposingScore: number,
+  improvements: CardImprovements,
+): number {
+  if (
+    getCardImprovement(improvements, card)?.id !== 'robber' ||
+    opposingCards.length === 0 ||
+    opposingScore <= 0
+  ) {
+    return 0;
+  }
+  const target = opposingCards[Math.floor(Math.random() * opposingCards.length)];
+  return Math.min(opposingScore, cardValue(target));
+}
+
+export function rollCardImprovementChoices(improvements: CardImprovements, count = 3): Card[] {
   const available = createDeck().filter(
     (card) => CARD_IMPROVEMENTS[card.rank].length > 0 && !improvements[card.id],
   );

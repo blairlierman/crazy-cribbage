@@ -121,4 +121,89 @@ describe('scorePegging', () => {
     const result = scorePegging(pile, makeCard('6', 'spades'));
     expect(result.details.some((d) => d.includes('Pair'))).toBe(true);
   });
+
+  it('scores the improved Ace high in runs and applies counting bonuses', () => {
+    const highAceRun = scoreHand(
+      [makeCard('K'), makeCard('A'), makeCard('Q'), makeCard('5')],
+      makeCard('2', 'hearts'),
+      false,
+      { 'A-spades': 'round_robin' },
+    );
+    expect(highAceRun.breakdown.some((item) => item.description.includes('Runs (3 pts)'))).toBe(
+      true,
+    );
+
+    const lowAceRun = scoreHand(
+      [makeCard('A'), makeCard('2', 'hearts'), makeCard('3', 'clubs'), makeCard('K')],
+      makeCard('9', 'hearts'),
+      false,
+      { 'A-spades': 'round_robin' },
+    );
+    expect(lowAceRun.breakdown.some((item) => item.description.includes('Runs (3 pts)'))).toBe(
+      true,
+    );
+
+    const improvedFours = scoreHand(
+      [makeCard('4'), makeCard('5', 'hearts'), makeCard('6', 'clubs'), makeCard('7', 'diamonds')],
+      makeCard('K', 'hearts'),
+      false,
+      { '4-spades': 'four_on_the_floor' },
+    );
+    expect(improvedFours.total).toBe(12);
+    expect(
+      improvedFours.breakdown.some((item) => item.description.includes('Four on the Floor')),
+    ).toBe(true);
+  });
+
+  it('applies card-value and partner bonuses while counting hands', () => {
+    const hand = scoreHand(
+      [makeCard('2'), makeCard('5', 'hearts'), makeCard('6', 'clubs'), makeCard('9', 'diamonds')],
+      makeCard('10', 'hearts'),
+      false,
+      {
+        '2-spades': 'times_two',
+        '6-clubs': 'call_my_number',
+        '9-diamonds': 'best_hand',
+      },
+    );
+    expect(hand.breakdown.some((item) => item.description.includes('fifteen'))).toBe(true);
+    expect(hand.breakdown.some((item) => item.description.includes('sixteen'))).toBe(true);
+    expect(hand.breakdown.some((item) => item.description.includes('Card improvements'))).toBe(
+      true,
+    );
+
+    const pairBonus = scoreHand(
+      [makeCard('2'), makeCard('9', 'hearts'), makeCard('6', 'clubs'), makeCard('7', 'diamonds')],
+      makeCard('K', 'hearts'),
+      false,
+      { '2-spades': 'best_hand_ever', '6-clubs': 'gen_z', '7-diamonds': 'kids_these_days' },
+    );
+    const bonus = pairBonus.breakdown.find((item) =>
+      item.description.includes('Card improvements'),
+    );
+    expect(bonus?.points).toBe(6);
+  });
+
+  it('applies pegging-only improvement scoring', () => {
+    const doubled = scorePegging(
+      [makeCard('8'), makeCard('5', 'hearts'), makeCard('2', 'clubs')],
+      makeCard('2', 'clubs'),
+      { '2-clubs': 'times_two' },
+    );
+    expect(doubled.total).toBe(4);
+
+    const sixteen = scorePegging(
+      [makeCard('10'), makeCard('6', 'hearts')],
+      makeCard('6', 'hearts'),
+      { '6-hearts': 'call_my_number' },
+    );
+    expect(sixteen.total).toBe(2);
+
+    const fourCardRun = scorePegging(
+      [makeCard('4'), makeCard('5', 'hearts'), makeCard('6', 'clubs'), makeCard('7', 'diamonds')],
+      makeCard('7', 'diamonds'),
+      { '4-spades': 'four_on_the_floor' },
+    );
+    expect(fourCardRun.total).toBe(8);
+  });
 });
