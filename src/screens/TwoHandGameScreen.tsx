@@ -78,6 +78,9 @@ export default function TwoHandGameScreen({
   const [boardAnimating, setBoardAnimating] = useState(false);
   const [boardSpotlight, setBoardSpotlight] = useState(false);
   const [showBoardModal, setShowBoardModal] = useState(false);
+  const [boardModalManual, setBoardModalManual] = useState(false);
+  const boardModalManualRef = useRef(false);
+  boardModalManualRef.current = boardModalManual;
   const [showRoundIntro, setShowRoundIntro] = useState(true);
   const [abilityTooltip, setAbilityTooltip] = useState<AbilityTooltipState | null>(null);
   const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -134,6 +137,7 @@ export default function TwoHandGameScreen({
     setBoardAnimating(true);
     setBoardSpotlight(true);
     if (!showRoundIntro && autoOpenBoardModal) {
+      setBoardModalManual(false);
       setShowBoardModal(true);
     }
     setBoardPreview(cloneBoard(previousBoard));
@@ -145,6 +149,11 @@ export default function TwoHandGameScreen({
       if (currentPosition === targetPosition) {
         setBoardPreview(cloneBoard(game.board));
         setBoardAnimating(false);
+        if (!boardModalManualRef.current) {
+          setTimeout(() => {
+            if (!boardModalManualRef.current) setShowBoardModal(false);
+          }, 600);
+        }
         spotlightRef.current = setTimeout(() => setBoardSpotlight(false), 1400);
         return;
       }
@@ -274,7 +283,7 @@ export default function TwoHandGameScreen({
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderMain}>
-            <Text style={styles.sectionLabel}>
+            <Text style={[styles.sectionLabel, styles.sectionLabelFlex]}>
               {title} {isDealer ? '👑' : ''}
               {game.phase === 'discard' || game.phase === 'peek_starter'
                 ? isDiscardSeat
@@ -292,6 +301,16 @@ export default function TwoHandGameScreen({
                         : ' — waiting'
                     : ''}
             </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={
+                handSortOrder === 'suit' ? 'Sort hands by suit first' : 'Sort hands by rank first'
+              }
+              style={styles.sortToggle}
+              onPress={toggleSortOrder}
+            >
+              <Text style={styles.sortToggleText}>{handSortOrder === 'suit' ? '♠️' : '🔢'}</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.sectionControls}>
             {seatCanPass && (
@@ -305,9 +324,6 @@ export default function TwoHandGameScreen({
                 <Text style={styles.inlineGoBtnText}>Go!</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.sortToggle} onPress={toggleSortOrder}>
-              <Text style={styles.sortToggleText}>{handSortOrder === 'suit' ? '♠️' : '🔢'}</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -389,7 +405,10 @@ export default function TwoHandGameScreen({
 
         <TouchableOpacity
           style={styles.progressRow}
-          onPress={() => setShowBoardModal(true)}
+          onPress={() => {
+            setBoardModalManual(true);
+            setShowBoardModal(true);
+          }}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Open board progress"
@@ -467,12 +486,7 @@ export default function TwoHandGameScreen({
                     key={`crib-${card.id}`}
                     card={card}
                     small
-                    faceDown={
-                      game.phase === 'discard' ||
-                      game.phase === 'peek_starter' ||
-                      game.phase === 'swap' ||
-                      game.phase === 'pegging'
-                    }
+                    faceDown={game.phase === 'swap' || game.phase === 'pegging'}
                   />
                 ))
               )}
@@ -599,7 +613,7 @@ export default function TwoHandGameScreen({
         <Pressable
           style={styles.tooltipOverlay}
           onPress={() => {
-            if (!showRoundIntro) setShowBoardModal(false);
+            if (!showRoundIntro && boardModalManual) setShowBoardModal(false);
           }}
         >
           <View style={styles.boardModalBox}>
@@ -615,22 +629,24 @@ export default function TwoHandGameScreen({
             <ScrollView style={styles.boardModalScroll}>
               <BoardView board={displayedBoard} targetScore={round.targetScore} />
             </ScrollView>
-            <TouchableOpacity
-              accessible
-              accessibilityRole="button"
-              style={styles.boardModalBtn}
-              onPress={() => {
-                if (showRoundIntro) {
-                  setShowRoundIntro(false);
-                } else {
-                  setShowBoardModal(false);
-                }
-              }}
-            >
-              <Text style={styles.boardModalBtnText}>
-                {showRoundIntro ? 'Continue to Play' : 'Close'}
-              </Text>
-            </TouchableOpacity>
+            {(showRoundIntro || boardModalManual) && (
+              <TouchableOpacity
+                accessible
+                accessibilityRole="button"
+                style={styles.boardModalBtn}
+                onPress={() => {
+                  if (showRoundIntro) {
+                    setShowRoundIntro(false);
+                  } else {
+                    setShowBoardModal(false);
+                  }
+                }}
+              >
+                <Text style={styles.boardModalBtnText}>
+                  {showRoundIntro ? 'Continue to Play' : 'Close'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Pressable>
       </Modal>
@@ -777,6 +793,12 @@ const styles = StyleSheet.create({
   },
   sectionHeaderMain: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionLabelFlex: {
+    flexShrink: 1,
   },
   sectionControls: {
     flexDirection: 'row',
