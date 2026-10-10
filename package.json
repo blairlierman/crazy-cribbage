@@ -32,7 +32,8 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:coverage": "jest --runInBand --coverage"
   },
   "jest": {
     "preset": "ts-jest",
@@ -40,7 +41,16 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/e2e/"
-    ]
+    ],
+    "collectCoverageFrom": [
+      "src/game/**/*.ts",
+      "src/store/**/*.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 85
+      }
+    }
   },
   "private": true
 }
