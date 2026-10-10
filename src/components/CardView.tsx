@@ -1,6 +1,7 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Card, suitSymbol } from '../game/cards';
+import { CardImprovement } from '../game/cardImprovements';
 
 interface CardViewProps {
   card: Card;
@@ -9,6 +10,7 @@ interface CardViewProps {
   disabled?: boolean;
   small?: boolean;
   faceDown?: boolean;
+  improvement?: CardImprovement | null;
 }
 
 export default function CardView({
@@ -18,8 +20,10 @@ export default function CardView({
   disabled = false,
   small = false,
   faceDown = false,
+  improvement,
 }: CardViewProps) {
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+  const [showImprovement, setShowImprovement] = useState(false);
 
   if (faceDown) {
     return (
@@ -29,15 +33,8 @@ export default function CardView({
     );
   }
 
-  const inner = (
-    <View
-      style={[
-        styles.card,
-        small && styles.smallCard,
-        selected && styles.selected,
-        disabled && styles.disabled,
-      ]}
-    >
+  const content = (
+    <View style={styles.cardContent}>
       <Text style={[styles.rank, isRed && styles.red, small && styles.smallRank]}>{card.rank}</Text>
       <Text style={[styles.suit, isRed && styles.red, small && styles.smallSuit]}>
         {suitSymbol(card.suit)}
@@ -45,25 +42,78 @@ export default function CardView({
     </View>
   );
 
-  if (onPress) {
-    return (
-      <TouchableOpacity
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={`${card.rank} of ${card.suit}`}
-        onPress={onPress}
-        disabled={disabled}
-        activeOpacity={0.7}
-      >
-        {inner}
-      </TouchableOpacity>
-    );
-  }
-
-  return inner;
+  return (
+    <View style={[styles.cardWrapper, small && styles.smallCardWrapper]}>
+      {onPress ? (
+        <TouchableOpacity
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`${card.rank} of ${card.suit}`}
+          onPress={onPress}
+          disabled={disabled}
+          activeOpacity={0.7}
+        >
+          <View
+            style={[
+              styles.card,
+              small && styles.smallCard,
+              selected && styles.selected,
+              disabled && styles.disabled,
+            ]}
+          >
+            {content}
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <View
+          style={[
+            styles.card,
+            small && styles.smallCard,
+            selected && styles.selected,
+            disabled && styles.disabled,
+          ]}
+        >
+          {content}
+        </View>
+      )}
+      {improvement && (
+        <TouchableOpacity
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`${improvement.name}: ${improvement.description}`}
+          style={[styles.improvementStar, small && styles.smallImprovementStar]}
+          onPress={() => setShowImprovement(true)}
+        >
+          <Text style={[styles.starText, small && styles.smallStarText]}>★</Text>
+        </TouchableOpacity>
+      )}
+      {improvement && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showImprovement}
+          onRequestClose={() => setShowImprovement(false)}
+        >
+          <Pressable style={styles.tooltipOverlay} onPress={() => setShowImprovement(false)}>
+            <View style={styles.tooltipBox}>
+              <Text style={styles.tooltipName}>{improvement.name}</Text>
+              <Text style={styles.tooltipDesc}>{improvement.description}</Text>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    position: 'relative',
+    margin: 4,
+  },
+  smallCardWrapper: {
+    margin: 2,
+  },
   card: {
     width: 60,
     height: 85,
@@ -71,7 +121,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1.5,
     borderColor: '#ccc',
-    margin: 4,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 2,
@@ -83,7 +132,6 @@ const styles = StyleSheet.create({
   smallCard: {
     width: 44,
     height: 62,
-    margin: 2,
     borderRadius: 6,
   },
   selected: {
@@ -122,5 +170,59 @@ const styles = StyleSheet.create({
   },
   red: {
     color: '#C62828',
+  },
+  cardContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  improvementStar: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    zIndex: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFD700',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallImprovementStar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  starText: {
+    color: '#5D4037',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  smallStarText: {
+    fontSize: 12,
+  },
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tooltipBox: {
+    backgroundColor: '#1a237e',
+    borderRadius: 10,
+    padding: 16,
+    marginHorizontal: 32,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+    maxWidth: 320,
+  },
+  tooltipName: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  tooltipDesc: {
+    color: '#E3F2FD',
+    fontSize: 14,
   },
 });
