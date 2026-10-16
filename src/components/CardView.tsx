@@ -9,6 +9,7 @@ interface CardViewProps {
   selected?: boolean;
   disabled?: boolean;
   small?: boolean;
+  compact?: boolean;
   faceDown?: boolean;
   improvement?: CardImprovement | null;
 }
@@ -19,6 +20,7 @@ export default function CardView({
   selected = false,
   disabled = false,
   small = false,
+  compact = false,
   faceDown = false,
   improvement,
 }: CardViewProps) {
@@ -27,7 +29,14 @@ export default function CardView({
 
   if (faceDown) {
     return (
-      <View style={[styles.card, small && styles.smallCard, styles.faceDown]}>
+      <View
+        style={[
+          styles.card,
+          small && styles.smallCard,
+          compact && styles.compactCard,
+          styles.faceDown,
+        ]}
+      >
         <Text style={styles.faceDownText}>🂠</Text>
       </View>
     );
@@ -35,15 +44,37 @@ export default function CardView({
 
   const content = (
     <View style={styles.cardContent}>
-      <Text style={[styles.rank, isRed && styles.red, small && styles.smallRank]}>{card.rank}</Text>
-      <Text style={[styles.suit, isRed && styles.red, small && styles.smallSuit]}>
+      <Text
+        style={[
+          styles.rank,
+          isRed && styles.red,
+          small && styles.smallRank,
+          compact && styles.compactRank,
+        ]}
+      >
+        {card.rank}
+      </Text>
+      <Text
+        style={[
+          styles.suit,
+          isRed && styles.red,
+          small && styles.smallSuit,
+          compact && styles.compactSuit,
+        ]}
+      >
         {suitSymbol(card.suit)}
       </Text>
     </View>
   );
 
   return (
-    <View style={[styles.cardWrapper, small && styles.smallCardWrapper]}>
+    <View
+      style={[
+        styles.cardWrapper,
+        small && styles.smallCardWrapper,
+        compact && styles.compactCardWrapper,
+      ]}
+    >
       {onPress ? (
         <TouchableOpacity
           accessible
@@ -57,6 +88,7 @@ export default function CardView({
             style={[
               styles.card,
               small && styles.smallCard,
+              compact && styles.compactCard,
               selected && styles.selected,
               disabled && styles.disabled,
             ]}
@@ -69,6 +101,7 @@ export default function CardView({
           style={[
             styles.card,
             small && styles.smallCard,
+            compact && styles.compactCard,
             selected && styles.selected,
             disabled && styles.disabled,
           ]}
@@ -81,10 +114,22 @@ export default function CardView({
           accessible
           accessibilityRole="button"
           accessibilityLabel={`${improvement.name}: ${improvement.description}`}
-          style={[styles.improvementStar, small && styles.smallImprovementStar]}
+          style={[
+            styles.improvementStar,
+            small && styles.smallImprovementStar,
+            compact && styles.compactImprovementStar,
+          ]}
           onPress={() => setShowImprovement(true)}
         >
-          <Text style={[styles.starText, small && styles.smallStarText]}>★</Text>
+          <Text
+            style={[
+              styles.starText,
+              small && styles.smallStarText,
+              compact && styles.compactStarText,
+            ]}
+          >
+            ★
+          </Text>
         </TouchableOpacity>
       )}
       {improvement && (
@@ -114,6 +159,9 @@ const styles = StyleSheet.create({
   smallCardWrapper: {
     margin: 2,
   },
+  compactCardWrapper: {
+    margin: 1,
+  },
   card: {
     width: 60,
     height: 85,
@@ -133,6 +181,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 62,
     borderRadius: 6,
+  },
+  compactCard: {
+    width: 38,
+    height: 54,
+    borderRadius: 5,
   },
   selected: {
     borderColor: '#2196F3',
@@ -161,12 +214,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
   },
+  compactRank: {
+    fontSize: 14,
+    lineHeight: 16,
+  },
   suit: {
     fontSize: 20,
     color: '#1a1a1a',
   },
   smallSuit: {
     fontSize: 14,
+  },
+  compactSuit: {
+    fontSize: 12,
   },
   red: {
     color: '#C62828',
@@ -192,6 +252,11 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
   },
+  compactImprovementStar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
   starText: {
     color: '#5D4037',
     fontSize: 16,
@@ -199,6 +264,9 @@ const styles = StyleSheet.create({
   },
   smallStarText: {
     fontSize: 12,
+  },
+  compactStarText: {
+    fontSize: 10,
   },
   tooltipOverlay: {
     flex: 1,

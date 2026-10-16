@@ -67,6 +67,7 @@ export default function GameScreen({
   const target = round.targetScore;
   const { width } = useWindowDimensions();
   const wideLayout = width >= 600;
+  const compactHand = width < 600;
   const [game, setGame] = useState<GameState>(() => {
     const s = createInitialGameState(abilities, target, 'player', cardImprovements);
     return dealHands(s);
@@ -573,7 +574,7 @@ export default function GameScreen({
                 </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.row}>
+            <View style={[styles.row, styles.handRow]}>
               {sortedPlayerHand.map((c) => {
                 const isSelected = selectedCards.includes(c.id);
                 const isSwapSelected = swapSelected === c.id;
@@ -583,6 +584,7 @@ export default function GameScreen({
                     key={c.id}
                     card={c}
                     improvement={getCardImprovement(cardImprovements, c)}
+                    compact={compactHand}
                     selected={isSelected || isSwapSelected}
                     disabled={
                       game.phase === 'pegging' &&
@@ -840,6 +842,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-end',
+  },
+  handRow: {
+    flexWrap: 'nowrap',
   },
   starterPlaceholder: {
     width: 44,

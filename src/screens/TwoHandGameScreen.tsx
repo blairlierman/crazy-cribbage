@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import BoardView from '../components/BoardView';
@@ -72,6 +73,8 @@ export default function TwoHandGameScreen({
   onRoundComplete,
   onTrace,
 }: TwoHandGameScreenProps) {
+  const { width } = useWindowDimensions();
+  const compactHand = width < 600;
   const scenario = getTwoHandE2EScenarioFromLocation();
   const autoOpenBoardModal = !shouldDisableTwoHandBoardModalForE2E();
   const [game, setGame] = useState<TwoHandGameState>(() =>
@@ -396,12 +399,13 @@ export default function TwoHandGameScreen({
           </View>
         </View>
 
-        <View style={styles.row}>
+        <View style={[styles.row, styles.handRow]}>
           {cards.map((card) => (
             <CardView
               key={`${seat}-${card.id}`}
               card={card}
               improvement={getCardImprovement(cardImprovements, card)}
+              compact={compactHand}
               selected={selectedCards.includes(card.id) || swapSelected === card.id}
               disabled={
                 game.phase === 'discard' || game.phase === 'peek_starter'
@@ -968,6 +972,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-end',
+  },
+  handRow: {
+    flexWrap: 'nowrap',
   },
   sortToggle: {
     width: 24,

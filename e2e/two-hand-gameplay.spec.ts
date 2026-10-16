@@ -98,6 +98,20 @@ test('Twin Hands requires each seat to discard before pegging', async ({ page })
   await expect(page.getByText('Pegging Pile — Count 0 • Active: Bottom')).toBeVisible();
 });
 
+test('Twin Hands keeps each hand on one row on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await startTwinHandsScenario(page, 'discard_flow');
+
+  const cardButtons = page.getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ });
+  await expect(cardButtons).toHaveCount(12);
+  const cardRows = await cardButtons.evaluateAll((buttons) =>
+    buttons.map((button) => Math.round(button.getBoundingClientRect().top)),
+  );
+
+  expect(new Set(cardRows.slice(0, 6)).size).toBe(1);
+  expect(new Set(cardRows.slice(6)).size).toBe(1);
+});
+
 test('Twin Hands scores pegging combinations and resets the pile at 31', async ({ page }) => {
   await startTwinHandsScenario(page, 'pegging_score');
 
