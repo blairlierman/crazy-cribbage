@@ -98,18 +98,43 @@ test('Twin Hands requires each seat to discard before pegging', async ({ page })
   await expect(page.getByText('Pegging Pile — Count 0 • Active: Bottom')).toBeVisible();
 });
 
+test('Classic keeps the player hand on one row on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start Classic Run' }).click();
+  await page
+    .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+    .first()
+    .click();
+  await page
+    .getByRole('button', { name: /^Choose .+:/ })
+    .first()
+    .click();
+
+  const cardButtons = page.getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ });
+  await expect(cardButtons).toHaveCount(6);
+  const cardTops = await cardButtons.evaluateAll((buttons) =>
+    buttons.map((button) => Math.round(button.getBoundingClientRect().top)),
+  );
+  expect(new Set(cardTops).size).toBe(1);
+});
+
 test('Twin Hands keeps each hand on one row on a narrow screen', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await startTwinHandsScenario(page, 'discard_flow');
 
-  const cardButtons = page.getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ });
-  await expect(cardButtons).toHaveCount(12);
-  const cardRows = await cardButtons.evaluateAll((buttons) =>
-    buttons.map((button) => Math.round(button.getBoundingClientRect().top)),
-  );
+  const getCardRowTops = async (ranks: string[]) =>
+    Promise.all(
+      ranks.map(async (rank) => {
+        const card = page.getByText(rank, { exact: true }).first();
+        await expect(card).toBeVisible();
+        const bounds = await card.boundingBox();
+        return Math.round(bounds!.y);
+      }),
+    );
 
-  expect(new Set(cardRows.slice(0, 6)).size).toBe(1);
-  expect(new Set(cardRows.slice(6)).size).toBe(1);
+  expect(new Set(await getCardRowTops(['7', '8', '9', 'J', 'Q', 'K'])).size).toBe(1);
+  expect(new Set(await getCardRowTops(['A', '2', '3', '4', '5', '6'])).size).toBe(1);
 });
 
 test('Twin Hands scores pegging combinations and resets the pile at 31', async ({ page }) => {
