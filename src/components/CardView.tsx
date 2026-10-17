@@ -10,6 +10,7 @@ interface CardViewProps {
   disabled?: boolean;
   small?: boolean;
   compact?: boolean;
+  compactWidth?: number;
   faceDown?: boolean;
   improvement?: CardImprovement | null;
 }
@@ -21,6 +22,7 @@ export default function CardView({
   disabled = false,
   small = false,
   compact = false,
+  compactWidth,
   faceDown = false,
   improvement,
 }: CardViewProps) {
@@ -34,6 +36,11 @@ export default function CardView({
           styles.card,
           small && styles.smallCard,
           compact && styles.compactCard,
+          compact &&
+            compactWidth !== undefined && {
+              width: compactWidth,
+              height: (compactWidth * 85) / 60,
+            },
           styles.faceDown,
         ]}
       >
@@ -89,6 +96,11 @@ export default function CardView({
               styles.card,
               small && styles.smallCard,
               compact && styles.compactCard,
+              compact &&
+                compactWidth !== undefined && {
+                  width: compactWidth,
+                  height: (compactWidth * 85) / 60,
+                },
               selected && styles.selected,
               disabled && styles.disabled,
             ]}
@@ -102,6 +114,11 @@ export default function CardView({
             styles.card,
             small && styles.smallCard,
             compact && styles.compactCard,
+            compact &&
+              compactWidth !== undefined && {
+                width: compactWidth,
+                height: (compactWidth * 85) / 60,
+              },
             selected && styles.selected,
             disabled && styles.disabled,
           ]}

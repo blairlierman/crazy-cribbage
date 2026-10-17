@@ -68,6 +68,7 @@ export default function GameScreen({
   const { width } = useWindowDimensions();
   const wideLayout = width >= 600;
   const compactHand = width < 600;
+  const compactCardWidth = Math.min(60, (width - 24) / 6 - 2);
   const [game, setGame] = useState<GameState>(() => {
     const s = createInitialGameState(abilities, target, 'player', cardImprovements);
     return dealHands(s);
@@ -585,6 +586,7 @@ export default function GameScreen({
                     card={c}
                     improvement={getCardImprovement(cardImprovements, c)}
                     compact={compactHand}
+                    compactWidth={compactCardWidth}
                     selected={isSelected || isSwapSelected}
                     disabled={
                       game.phase === 'pegging' &&

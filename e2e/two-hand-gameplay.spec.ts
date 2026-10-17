@@ -117,6 +117,8 @@ test('Classic keeps the player hand on one row on a narrow screen', async ({ pag
     buttons.map((button) => Math.round(button.getBoundingClientRect().top)),
   );
   expect(new Set(cardTops).size).toBe(1);
+  const cardBounds = await cardButtons.first().boundingBox();
+  expect(cardBounds!.width).toBeGreaterThan(45);
 });
 
 test('Twin Hands keeps each hand on one row on a narrow screen', async ({ page }) => {
@@ -135,6 +137,8 @@ test('Twin Hands keeps each hand on one row on a narrow screen', async ({ page }
 
   expect(new Set(await getCardRowTops(['7', '8', '9', 'J', 'Q', 'K'])).size).toBe(1);
   expect(new Set(await getCardRowTops(['A', '2', '3', '4', '5', '6'])).size).toBe(1);
+  const activeCard = await page.getByRole('button', { name: '7 of clubs' }).boundingBox();
+  expect(activeCard!.width).toBeGreaterThan(45);
 });
 
 test('Twin Hands scores pegging combinations and resets the pile at 31', async ({ page }) => {

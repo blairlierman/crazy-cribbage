@@ -75,6 +75,7 @@ export default function TwoHandGameScreen({
 }: TwoHandGameScreenProps) {
   const { width } = useWindowDimensions();
   const compactHand = width < 600;
+  const compactCardWidth = Math.min(60, (width - 24) / 6 - 2);
   const scenario = getTwoHandE2EScenarioFromLocation();
   const autoOpenBoardModal = !shouldDisableTwoHandBoardModalForE2E();
   const [game, setGame] = useState<TwoHandGameState>(() =>
@@ -406,6 +407,7 @@ export default function TwoHandGameScreen({
               card={card}
               improvement={getCardImprovement(cardImprovements, card)}
               compact={compactHand}
+              compactWidth={compactCardWidth}
               selected={selectedCards.includes(card.id) || swapSelected === card.id}
               disabled={
                 game.phase === 'discard' || game.phase === 'peek_starter'
