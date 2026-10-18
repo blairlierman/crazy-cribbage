@@ -57,6 +57,11 @@ export default function CardView({
           isRed && styles.red,
           small && styles.smallRank,
           compact && styles.compactRank,
+          compact &&
+            compactWidth !== undefined && {
+              fontSize: (22 * compactWidth) / 60,
+              lineHeight: (26 * compactWidth) / 60,
+            },
         ]}
       >
         {card.rank}
@@ -67,6 +72,10 @@ export default function CardView({
           isRed && styles.red,
           small && styles.smallSuit,
           compact && styles.compactSuit,
+          compact &&
+            compactWidth !== undefined && {
+              fontSize: (20 * compactWidth) / 60,
+            },
         ]}
       >
         {suitSymbol(card.suit)}

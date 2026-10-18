@@ -137,8 +137,17 @@ test('Twin Hands keeps each hand on one row on a narrow screen', async ({ page }
 
   expect(new Set(await getCardRowTops(['7', '8', '9', 'J', 'Q', 'K'])).size).toBe(1);
   expect(new Set(await getCardRowTops(['A', '2', '3', '4', '5', '6'])).size).toBe(1);
-  const activeCard = await page.getByRole('button', { name: '7 of clubs' }).boundingBox();
+  const activeCardButton = page.getByRole('button', { name: '7 of clubs' });
+  const activeCard = await activeCardButton.boundingBox();
   expect(activeCard!.width).toBeGreaterThan(45);
+  const rankFontSize = await activeCardButton
+    .getByText('7', { exact: true })
+    .evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  const suitFontSize = await activeCardButton
+    .getByText('♣', { exact: true })
+    .evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  expect(rankFontSize).toBeGreaterThan(16);
+  expect(suitFontSize).toBeGreaterThan(14);
 });
 
 test('Twin Hands scores pegging combinations and resets the pile at 31', async ({ page }) => {
