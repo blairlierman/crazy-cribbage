@@ -655,13 +655,14 @@ export default function TwoHandGameScreen({
             </>
           )}
         </View>
-
       </ScrollView>
 
       <Modal
         transparent
         animationType="fade"
-        visible={showRoundIntro || (showBoardModal && !game.handResult && game.phase !== 'round_over')}
+        visible={
+          showRoundIntro || (showBoardModal && !game.handResult && game.phase !== 'round_over')
+        }
         onRequestClose={() => {
           if (!showRoundIntro) setShowBoardModal(false);
         }}
@@ -710,7 +711,11 @@ export default function TwoHandGameScreen({
       <Modal
         transparent
         animationType="fade"
-        visible={!!game.handResult || game.phase === 'round_over'}
+        visible={
+          !showRoundIntro &&
+          !showMidpointReward &&
+          (!!game.handResult || game.phase === 'round_over')
+        }
         onRequestClose={() => undefined}
       >
         <View style={styles.resultModalOverlay}>
