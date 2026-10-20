@@ -225,6 +225,10 @@ export default function TwoHandGameScreen({
   }, [autoOpenBoardModal, game.board, showRoundIntro]);
 
   useEffect(() => {
+    if (game.handResult || game.phase === 'round_over') setShowBoardModal(false);
+  }, [game.handResult, game.phase]);
+
+  useEffect(() => {
     if (midpointRewardPendingRef.current || showMidpointReward) return;
     if (game.phase !== 'pegging' || game.winner !== null || !isTwoHandPeggingComplete(game)) return;
     const withLastCard = awardGoTwoHands(game, game.pegging.lastToPlay ?? 'top');
@@ -652,47 +656,12 @@ export default function TwoHandGameScreen({
           )}
         </View>
 
-        {(game.handResult || game.phase === 'round_over') && (
-          <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>Hand Results</Text>
-            {game.handResult ? (
-              <>
-                <Text style={styles.resultLine}>Top hand: +{game.handResult.topHand} pts</Text>
-                <Text style={styles.resultLine}>
-                  Bottom hand: +{game.handResult.bottomHand} pts
-                </Text>
-                <Text style={styles.resultLine}>Crib: +{game.handResult.crib} pts</Text>
-                <Text style={styles.resultLine}>
-                  Combined this hand: +{game.handResult.combinedTotal} pts
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.resultLine}>
-                The round ended during pegging at {game.board.totalProgress}/{round.targetScore}.
-              </Text>
-            )}
-
-            {game.phase === 'round_over' && (
-              <Text style={[styles.winnerText, game.winner ? styles.playerWon : styles.aiWon]}>
-                {game.winner
-                  ? '🎉 Round cleared!'
-                  : `💀 Out of hands. Finished at ${game.board.totalProgress}/${round.targetScore}.`}
-              </Text>
-            )}
-
-            <TouchableOpacity style={styles.btn} onPress={handleNext}>
-              <Text style={styles.btnText}>
-                {game.phase === 'round_over' ? 'Continue →' : 'Next Hand →'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
 
       <Modal
         transparent
         animationType="fade"
-        visible={showRoundIntro || showBoardModal}
+        visible={showRoundIntro || (showBoardModal && !game.handResult && game.phase !== 'round_over')}
         onRequestClose={() => {
           if (!showRoundIntro) setShowBoardModal(false);
         }}
@@ -736,6 +705,49 @@ export default function TwoHandGameScreen({
             )}
           </View>
         </Pressable>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={!!game.handResult || game.phase === 'round_over'}
+        onRequestClose={() => undefined}
+      >
+        <View style={styles.resultModalOverlay}>
+          <View style={styles.resultBox}>
+            <Text style={styles.resultTitle}>Hand Results</Text>
+            {game.handResult ? (
+              <>
+                <Text style={styles.resultLine}>Top hand: +{game.handResult.topHand} pts</Text>
+                <Text style={styles.resultLine}>
+                  Bottom hand: +{game.handResult.bottomHand} pts
+                </Text>
+                <Text style={styles.resultLine}>Crib: +{game.handResult.crib} pts</Text>
+                <Text style={styles.resultLine}>
+                  Combined this hand: +{game.handResult.combinedTotal} pts
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.resultLine}>
+                The round ended during pegging at {game.board.totalProgress}/{round.targetScore}.
+              </Text>
+            )}
+
+            {game.phase === 'round_over' && (
+              <Text style={[styles.winnerText, game.winner ? styles.playerWon : styles.aiWon]}>
+                {game.winner
+                  ? '🎉 Round cleared!'
+                  : `💀 Out of hands. Finished at ${game.board.totalProgress}/${round.targetScore}.`}
+              </Text>
+            )}
+
+            <TouchableOpacity style={styles.btn} onPress={handleNext}>
+              <Text style={styles.btnText}>
+                {game.phase === 'round_over' ? 'Continue →' : 'Next Hand →'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {abilityTooltip && (
@@ -1104,8 +1116,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 12,
     padding: 16,
-    marginTop: 8,
     gap: 6,
+    width: '100%',
+    maxWidth: 420,
+  },
+  resultModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
   },
   resultTitle: {
     color: '#FFD700',

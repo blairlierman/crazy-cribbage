@@ -172,6 +172,9 @@ test('Twin Hands scores both hands and advances to the next hand', async ({ page
   await expect(page.getByText(/Bottom hand: \+\d+ pts/)).toBeVisible();
   await expect(page.getByText(/Crib: \+\d+ pts/)).toBeVisible();
   await expect(page.getByText(/Combined this hand: \+\d+ pts/)).toBeVisible();
+  const resultTitle = await page.getByText('Hand Results', { exact: true }).boundingBox();
+  expect(resultTitle).not.toBeNull();
+  expect(resultTitle!.y).toBeLessThan(400);
 
   await page.getByText('Next Hand →').click();
   await expect(page.getByText('2/2', { exact: true })).toBeVisible();
