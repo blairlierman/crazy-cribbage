@@ -49,6 +49,56 @@ function makeState(overrides: Partial<TwoHandGameState> = {}): TwoHandGameState 
 }
 
 describe('two hand state', () => {
+  it('applies a chosen Blackjack value during pegging', () => {
+    const ace = makeCard('A');
+    const state = makeState({
+      cardImprovements: { 'A-spades': 'blackjack' },
+      bottom: { hand: [ace], discards: [], score: 0 },
+      pegging: {
+        pile: [makeCard('10', 'hearts'), makeCard('10', 'clubs')],
+        pileValues: [10, 10],
+        playedCards: [],
+        count: 20,
+        topPassed: false,
+        bottomPassed: false,
+        topCards: [],
+        bottomCards: [ace],
+        lastToPlay: 'top',
+        pileResetCount: 0,
+      },
+    });
+
+    const after = playPeggingCard(state, 'bottom', ace, 11);
+    expect(after.bottom.score).toBe(2);
+    expect(after.pegging.count).toBe(0);
+    expect(after.pegging.pileValues).toEqual([]);
+  });
+
+  it('steals a random card value from the opposite hand', () => {
+    const robber = makeCard('7', 'hearts');
+    const state = makeState({
+      cardImprovements: { '7-hearts': 'robber' },
+      bottom: { hand: [makeCard('4', 'clubs')], discards: [], score: 10 },
+      pegging: {
+        pile: [],
+        pileValues: [],
+        playedCards: [],
+        count: 0,
+        topPassed: false,
+        bottomPassed: false,
+        topCards: [robber],
+        bottomCards: [makeCard('4', 'clubs')],
+        lastToPlay: 'bottom',
+        pileResetCount: 0,
+      },
+    });
+
+    const after = playPeggingCard(state, 'top', robber);
+    expect(after.top.score).toBe(4);
+    expect(after.bottom.score).toBe(6);
+    expect(after.board.totalProgress).toBe(0);
+  });
+
   it('requires both hands to discard before pegging starts', () => {
     const state = makeState({ phase: 'discard', discardSeat: 'top', crib: [] });
     const topDiscarded = discardForSeat(state, 'top', state.top.hand.slice(0, 2));

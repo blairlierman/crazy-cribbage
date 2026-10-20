@@ -3,6 +3,14 @@ import { expect, test, type Page } from '@playwright/test';
 async function startTwinHandsScenario(page: Page, scenario: 'single_go' | 'double_go') {
   await page.goto(`/?twoHandE2EScenario=${scenario}&twoHandE2EDisableBoardModal=1`);
   await page.getByRole('button', { name: 'Start Twin Hands Run' }).click();
+  await page
+    .getByRole('button', { name: / of (clubs|diamonds|hearts|spades)$/ })
+    .first()
+    .click();
+  await page
+    .getByRole('button', { name: /^Choose .+:/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Continue to Play' }).click();
 }
 

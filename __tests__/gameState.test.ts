@@ -67,6 +67,79 @@ function makePeggingState(overrides: Partial<GameState> = {}): GameState {
 // ─── Pegging hand removal ─────────────────────────────────────────────────────
 
 describe('pegging hand removal', () => {
+  it('uses the chosen Blackjack Ace value and resets the 31 count', () => {
+    const ace = makeCard('A', 'spades');
+    const state = makePeggingState({
+      cardImprovements: { 'A-spades': 'blackjack' },
+      pegging: {
+        pile: [makeCard('10', 'hearts'), makeCard('10', 'clubs')],
+        pileValues: [10, 10],
+        playedCards: [],
+        count: 20,
+        playerPassed: false,
+        aiPassed: false,
+        playerCards: [ace],
+        aiCards: [],
+        lastToPlay: 'ai',
+        pileResetCount: 0,
+      },
+    });
+
+    const after = playerPlayCard(state, ace, 11);
+    expect(after.player.score).toBe(2);
+    expect(after.pegging.count).toBe(0);
+    expect(after.pegging.pileValues).toEqual([]);
+    expect(after.pegging.playedCards[0].card.rank).toBe('A');
+  });
+
+  it('lets an improved Ace make a King-high pegging run', () => {
+    const queen = makeCard('Q', 'hearts');
+    const state = makePeggingState({
+      cardImprovements: { 'A-spades': 'round_robin' },
+      pegging: {
+        pile: [makeCard('K', 'clubs'), makeCard('A', 'spades')],
+        pileValues: [10, 1],
+        playedCards: [],
+        count: 11,
+        playerPassed: false,
+        aiPassed: false,
+        playerCards: [queen],
+        aiCards: [],
+        lastToPlay: 'ai',
+        pileResetCount: 0,
+      },
+    });
+
+    const after = playerPlayCard(state, queen);
+    expect(after.pegging.pile.map((card) => card.rank)).toEqual(['K', 'A', 'Q']);
+    expect(after.player.score).toBe(3);
+  });
+
+  it('transfers points from a random opposing card when an improved Seven is played', () => {
+    const robber = makeCard('7', 'hearts');
+    const state = makePeggingState({
+      cardImprovements: { '7-hearts': 'robber' },
+      ai: { hand: [makeCard('4', 'clubs')], discards: [], score: 10 },
+      pegging: {
+        pile: [],
+        pileValues: [],
+        playedCards: [],
+        count: 0,
+        playerPassed: false,
+        aiPassed: false,
+        playerCards: [robber],
+        aiCards: [makeCard('4', 'clubs')],
+        lastToPlay: 'ai',
+        pileResetCount: 0,
+      },
+    });
+
+    const after = playerPlayCard(state, robber);
+    expect(after.player.score).toBe(4);
+    expect(after.ai.score).toBe(6);
+    expect(after.peggingLog).toContain('Robber steals 4 points from AI');
+  });
+
   it('removes the played card from playerCards', () => {
     const state = makePeggingState({
       pegging: {

@@ -1,6 +1,7 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Card, suitSymbol } from '../game/cards';
+import { CardImprovement } from '../game/cardImprovements';
 
 interface CardViewProps {
   card: Card;
@@ -8,7 +9,10 @@ interface CardViewProps {
   selected?: boolean;
   disabled?: boolean;
   small?: boolean;
+  compact?: boolean;
+  compactWidth?: number;
   faceDown?: boolean;
+  improvement?: CardImprovement | null;
 }
 
 export default function CardView({
@@ -17,53 +21,173 @@ export default function CardView({
   selected = false,
   disabled = false,
   small = false,
+  compact = false,
+  compactWidth,
   faceDown = false,
+  improvement,
 }: CardViewProps) {
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+  const [showImprovement, setShowImprovement] = useState(false);
 
   if (faceDown) {
     return (
-      <View style={[styles.card, small && styles.smallCard, styles.faceDown]}>
+      <View
+        style={[
+          styles.card,
+          small && styles.smallCard,
+          compact && styles.compactCard,
+          compact &&
+            compactWidth !== undefined && {
+              width: compactWidth,
+              height: (compactWidth * 85) / 60,
+            },
+          styles.faceDown,
+        ]}
+      >
         <Text style={styles.faceDownText}>🂠</Text>
       </View>
     );
   }
 
-  const inner = (
-    <View
-      style={[
-        styles.card,
-        small && styles.smallCard,
-        selected && styles.selected,
-        disabled && styles.disabled,
-      ]}
-    >
-      <Text style={[styles.rank, isRed && styles.red, small && styles.smallRank]}>{card.rank}</Text>
-      <Text style={[styles.suit, isRed && styles.red, small && styles.smallSuit]}>
+  const content = (
+    <View style={styles.cardContent}>
+      <Text
+        style={[
+          styles.rank,
+          isRed && styles.red,
+          small && styles.smallRank,
+          compact && styles.compactRank,
+          compact &&
+            compactWidth !== undefined && {
+              fontSize: (22 * compactWidth) / 60,
+              lineHeight: (26 * compactWidth) / 60,
+            },
+        ]}
+      >
+        {card.rank}
+      </Text>
+      <Text
+        style={[
+          styles.suit,
+          isRed && styles.red,
+          small && styles.smallSuit,
+          compact && styles.compactSuit,
+          compact &&
+            compactWidth !== undefined && {
+              fontSize: (20 * compactWidth) / 60,
+            },
+        ]}
+      >
         {suitSymbol(card.suit)}
       </Text>
     </View>
   );
 
-  if (onPress) {
-    return (
-      <TouchableOpacity
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={`${card.rank} of ${card.suit}`}
-        onPress={onPress}
-        disabled={disabled}
-        activeOpacity={0.7}
-      >
-        {inner}
-      </TouchableOpacity>
-    );
-  }
-
-  return inner;
+  return (
+    <View
+      style={[
+        styles.cardWrapper,
+        small && styles.smallCardWrapper,
+        compact && styles.compactCardWrapper,
+      ]}
+    >
+      {onPress ? (
+        <TouchableOpacity
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`${card.rank} of ${card.suit}`}
+          onPress={onPress}
+          disabled={disabled}
+          activeOpacity={0.7}
+        >
+          <View
+            style={[
+              styles.card,
+              small && styles.smallCard,
+              compact && styles.compactCard,
+              compact &&
+                compactWidth !== undefined && {
+                  width: compactWidth,
+                  height: (compactWidth * 85) / 60,
+                },
+              selected && styles.selected,
+              disabled && styles.disabled,
+            ]}
+          >
+            {content}
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <View
+          style={[
+            styles.card,
+            small && styles.smallCard,
+            compact && styles.compactCard,
+            compact &&
+              compactWidth !== undefined && {
+                width: compactWidth,
+                height: (compactWidth * 85) / 60,
+              },
+            selected && styles.selected,
+            disabled && styles.disabled,
+          ]}
+        >
+          {content}
+        </View>
+      )}
+      {improvement && (
+        <TouchableOpacity
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`${improvement.name}: ${improvement.description}`}
+          style={[
+            styles.improvementStar,
+            small && styles.smallImprovementStar,
+            compact && styles.compactImprovementStar,
+          ]}
+          onPress={() => setShowImprovement(true)}
+        >
+          <Text
+            style={[
+              styles.starText,
+              small && styles.smallStarText,
+              compact && styles.compactStarText,
+            ]}
+          >
+            ★
+          </Text>
+        </TouchableOpacity>
+      )}
+      {improvement && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showImprovement}
+          onRequestClose={() => setShowImprovement(false)}
+        >
+          <Pressable style={styles.tooltipOverlay} onPress={() => setShowImprovement(false)}>
+            <View style={styles.tooltipBox}>
+              <Text style={styles.tooltipName}>{improvement.name}</Text>
+              <Text style={styles.tooltipDesc}>{improvement.description}</Text>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    position: 'relative',
+    margin: 4,
+  },
+  smallCardWrapper: {
+    margin: 2,
+  },
+  compactCardWrapper: {
+    margin: 1,
+  },
   card: {
     width: 60,
     height: 85,
@@ -71,7 +195,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1.5,
     borderColor: '#ccc',
-    margin: 4,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 2,
@@ -83,8 +206,12 @@ const styles = StyleSheet.create({
   smallCard: {
     width: 44,
     height: 62,
-    margin: 2,
     borderRadius: 6,
+  },
+  compactCard: {
+    width: 38,
+    height: 54,
+    borderRadius: 5,
   },
   selected: {
     borderColor: '#2196F3',
@@ -113,6 +240,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
   },
+  compactRank: {
+    fontSize: 14,
+    lineHeight: 16,
+  },
   suit: {
     fontSize: 20,
     color: '#1a1a1a',
@@ -120,7 +251,72 @@ const styles = StyleSheet.create({
   smallSuit: {
     fontSize: 14,
   },
+  compactSuit: {
+    fontSize: 12,
+  },
   red: {
     color: '#C62828',
+  },
+  cardContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  improvementStar: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    zIndex: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFD700',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallImprovementStar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  compactImprovementStar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  starText: {
+    color: '#5D4037',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  smallStarText: {
+    fontSize: 12,
+  },
+  compactStarText: {
+    fontSize: 10,
+  },
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tooltipBox: {
+    backgroundColor: '#1a237e',
+    borderRadius: 10,
+    padding: 16,
+    marginHorizontal: 32,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+    maxWidth: 320,
+  },
+  tooltipName: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  tooltipDesc: {
+    color: '#E3F2FD',
+    fontSize: 14,
   },
 });

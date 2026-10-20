@@ -1,4 +1,9 @@
-import { advanceRound, createInitialRunState, currentRound } from '../src/store/runState';
+import {
+  addCardImprovement,
+  advanceRound,
+  createInitialRunState,
+  currentRound,
+} from '../src/store/runState';
 
 describe('run state', () => {
   it('creates a classic run by default', () => {
@@ -34,5 +39,13 @@ describe('run state', () => {
     );
     expect(next.mode).toBe('two_hands');
     expect(next.currentRoundIndex).toBe(1);
+  });
+
+  it('keeps card-specific improvements for the entire run', () => {
+    const run = createInitialRunState();
+    const improved = addCardImprovement(run, 'A-spades', 'round_robin');
+
+    expect(improved.cardImprovements['A-spades']).toBe('round_robin');
+    expect(addCardImprovement(improved, 'A-spades', 'blackjack')).toBe(improved);
   });
 });

@@ -1,8 +1,17 @@
-import { Card, cardValue } from '../game/cards';
+import { Card } from '../game/cards';
 import { scoreHand } from '../game/scoring';
+import {
+  CardImprovements,
+  getPeggingCard,
+  getPlayablePeggingValues,
+} from '../game/cardImprovements';
 
 // AI discards: keep the best scoring 4-card combination
-export function aiChooseDiscards(hand: Card[], starter: Card | null): Card[] {
+export function aiChooseDiscards(
+  hand: Card[],
+  starter: Card | null,
+  improvements: CardImprovements = {},
+): Card[] {
   const n = hand.length;
   const keepCount = 4;
   const discardCount = n - keepCount;
@@ -15,7 +24,7 @@ export function aiChooseDiscards(hand: Card[], starter: Card | null): Card[] {
   for (const keep of combinations) {
     // Estimate score without starter (use a dummy)
     const dummyStarter = starter ?? { suit: 'spades', rank: '2', id: 'dummy' };
-    const score = scoreHand(keep, dummyStarter, false).total;
+    const score = scoreHand(keep, dummyStarter, false, improvements).total;
     if (score > bestScore) {
       bestScore = score;
       bestDiscard = hand.filter((c) => !keep.some((k) => k.id === c.id));
@@ -26,28 +35,44 @@ export function aiChooseDiscards(hand: Card[], starter: Card | null): Card[] {
 }
 
 // AI chooses which card to play during pegging
-export function aiChoosePeggingCard(hand: Card[], pileCount: number, pile: Card[]): Card | null {
-  const playable = hand.filter((c) => cardValue(c) + pileCount <= 31);
-  if (playable.length === 0) return null;
+export interface AIPeggingChoice {
+  card: Card;
+  value: number;
+}
+
+export function aiChoosePeggingCard(
+  hand: Card[],
+  pileCount: number,
+  pile: Card[],
+  improvements: CardImprovements = {},
+): AIPeggingChoice | null {
+  const choices = hand.flatMap((card) =>
+    getPlayablePeggingValues(card, improvements)
+      .filter((value) => value + pileCount <= 31)
+      .map((value) => ({ card, value })),
+  );
+  if (choices.length === 0) return null;
 
   // Prefer cards that hit 15 or 31, then pairs, then runs
-  let best: Card | null = null;
+  let best: AIPeggingChoice | null = null;
   let bestScore = -1;
 
-  for (const card of playable) {
-    const newPile = [...pile, card];
-    const newCount = pileCount + cardValue(card);
+  for (const choice of choices) {
+    const { card, value } = choice;
+    const playedCard = getPeggingCard(card, improvements);
+    const newPile = [...pile, playedCard];
+    const newCount = pileCount + value;
     let score = 0;
 
     if (newCount === 15 || newCount === 31) score += 2;
     // Pair
     if (pile.length > 0 && pile[pile.length - 1].rank === card.rank) score += 2;
     // Prefer not to give player easy points: play lowest card otherwise
-    score -= cardValue(card) * 0.01;
+    score -= value * 0.01;
 
     if (score > bestScore) {
       bestScore = score;
-      best = card;
+      best = choice;
     }
   }
 
