@@ -1,6 +1,13 @@
 import { Card, cardValue, createDeck, shuffle } from './cards';
 import { scoreHand, scorePegging } from './scoring';
 import { UnlockedAbilities, hasAbility, abilityStacks } from './abilities';
+import {
+  CardImprovements,
+  getCardImprovement,
+  getPeggingCard,
+  getPeggingValue,
+  stealRobberPoints,
+} from './cardImprovements';
 
 export type GamePhase =
   | 'deal'
@@ -24,6 +31,7 @@ export interface PeggingPlayedCard {
 
 export interface PeggingState {
   pile: Card[];
+  pileValues?: number[];
   playedCards: PeggingPlayedCard[]; // all cards played this hand (for display after pile resets)
   count: number; // sum of pile
   playerPassed: boolean;
@@ -59,6 +67,7 @@ export interface GameState {
   pegging: PeggingState;
   handResult: HandResult | null;
   abilities: UnlockedAbilities;
+  cardImprovements: CardImprovements;
   swapsLeft: number;
   luckyRerollAvailable: boolean;
   targetScore: number;
@@ -75,6 +84,7 @@ export function createInitialGameState(
   abilities: UnlockedAbilities,
   targetScore: number,
   dealer: 'player' | 'ai' = 'player',
+  cardImprovements: CardImprovements = {},
 ): GameState {
   return {
     deck: [],
@@ -86,6 +96,7 @@ export function createInitialGameState(
     dealer,
     pegging: {
       pile: [],
+      pileValues: [],
       playedCards: [],
       count: 0,
       playerPassed: false,
@@ -97,6 +108,7 @@ export function createInitialGameState(
     },
     handResult: null,
     abilities,
+    cardImprovements,
     swapsLeft: 0,
     luckyRerollAvailable: false,
     targetScore,
@@ -128,6 +140,7 @@ export function dealHands(state: GameState): GameState {
     phase,
     pegging: {
       pile: [],
+      pileValues: [],
       playedCards: [],
       count: 0,
       playerPassed: false,
@@ -219,6 +232,7 @@ function proceedToPegging(state: GameState): GameState {
     ai: { ...state.ai, score: aiScore },
     pegging: {
       pile: [],
+      pileValues: [],
       playedCards: [],
       count: 0,
       playerPassed: false,
@@ -232,18 +246,24 @@ function proceedToPegging(state: GameState): GameState {
   };
 }
 
-export function playerPlayCard(state: GameState, card: Card): GameState {
+export function playerPlayCard(state: GameState, card: Card, blackjackValue = 1): GameState {
   const pegging = state.pegging;
 
   if (!pegging.playerCards.some((c) => c.id === card.id)) return state;
-  if (pegging.count + cardValue(card) > 31) return state;
+  const value = getPeggingValue(card, state.cardImprovements, blackjackValue);
+  if (pegging.count + value > 31) return state;
 
-  const newPile = [...pegging.pile, card];
-  const newCount = pegging.count + cardValue(card);
+  const playedCard = getPeggingCard(card, state.cardImprovements);
+  const newPile = [...pegging.pile, playedCard];
+  const newPileValues = [...(pegging.pileValues ?? pegging.pile.map((c) => cardValue(c))), value];
+  const newCount = pegging.count + value;
   const newPlayerCards = pegging.playerCards.filter((c) => c.id !== card.id);
-  const newPlayedCards = [...pegging.playedCards, { card, playedBy: 'player' as const }];
+  const newPlayedCards = [
+    ...pegging.playedCards,
+    { card: playedCard, playedBy: 'player' as const },
+  ];
 
-  const score = scorePegging(newPile, card);
+  const score = scorePegging(newPile, playedCard, state.cardImprovements, newPileValues);
   let pts = score.total;
 
   let log = [...state.peggingLog];
@@ -251,11 +271,15 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
     log.push(`Player: ${score.details.join(', ')}`);
   }
 
-  let playerScore = state.player.score + pts;
+  const stolen = stealRobberPoints(card, pegging.aiCards, state.ai.score, state.cardImprovements);
+  if (stolen > 0) log.push(`Robber steals ${stolen} point${stolen === 1 ? '' : 's'} from AI`);
+  let playerScore = state.player.score + pts + stolen;
+  let aiScore = state.ai.score - stolen;
 
   let newPegging: PeggingState = {
     ...pegging,
     pile: newPile,
+    pileValues: newPileValues,
     playedCards: newPlayedCards,
     count: newCount,
     playerCards: newPlayerCards,
@@ -269,6 +293,7 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
     newPegging = {
       ...newPegging,
       pile: [],
+      pileValues: [],
       count: 0,
       playerPassed: false,
       aiPassed: false,
@@ -280,6 +305,7 @@ export function playerPlayCard(state: GameState, card: Card): GameState {
   let s = {
     ...state,
     player: { ...state.player, score: playerScore },
+    ai: { ...state.ai, score: aiScore },
     pegging: newPegging,
     peggingLog: log,
   };
@@ -344,6 +370,7 @@ export function resetPeggingPile(state: GameState, goRecipient: 'player' | 'ai')
     pegging: {
       ...state.pegging,
       pile: [],
+      pileValues: [],
       count: 0,
       playerPassed: false,
       aiPassed: false,
@@ -402,6 +429,7 @@ export function scoreShow(state: GameState): GameState {
       side === 'player' ? state.player.hand : state.ai.hand,
       state.starter!,
       false,
+      state.cardImprovements,
     );
     const pts = applyBonuses(base);
     const breakdown = base.breakdown.map((b) => b.description);
@@ -425,7 +453,12 @@ export function scoreShow(state: GameState): GameState {
   }
 
   if (!winner) {
-    const baseCribScore = scoreHand(state.crib.slice(0, 4), state.starter, true);
+    const baseCribScore = scoreHand(
+      state.crib.slice(0, 4),
+      state.starter,
+      true,
+      state.cardImprovements,
+    );
     cribPts = applyBonuses(baseCribScore);
     cribBreakdown = baseCribScore.breakdown.map((b) => b.description);
 

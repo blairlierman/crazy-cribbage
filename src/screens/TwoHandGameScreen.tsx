@@ -6,13 +6,22 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import BoardView from '../components/BoardView';
 import CardView from '../components/CardView';
+import CardImprovementPicker from '../components/CardImprovementPicker';
 import { ALL_ABILITIES, UnlockedAbilities, hasAbility } from '../game/abilities';
 import { BoardState } from '../game/boards';
-import { Card, cardValue, sortCards } from '../game/cards';
+import { Card, sortCards } from '../game/cards';
+import {
+  CardImprovementId,
+  CardImprovements,
+  canPlayPeggingCard,
+  getCardImprovement,
+  rollCardImprovementChoices,
+} from '../game/cardImprovements';
 import { GameMode, RoundConfig } from '../game/modes';
 import {
   TwoHandGameState,
@@ -40,6 +49,8 @@ import {
 
 interface TwoHandGameScreenProps {
   abilities: UnlockedAbilities;
+  cardImprovements: CardImprovements;
+  onChooseCardImprovement: (card: Card, improvementId: CardImprovementId) => void;
   roundIndex: number;
   round: RoundConfig;
   mode: GameMode;
@@ -54,12 +65,17 @@ interface AbilityTooltipState {
 
 export default function TwoHandGameScreen({
   abilities,
+  cardImprovements,
+  onChooseCardImprovement,
   roundIndex,
   round,
   mode,
   onRoundComplete,
   onTrace,
 }: TwoHandGameScreenProps) {
+  const { width } = useWindowDimensions();
+  const compactHand = width < 600;
+  const compactCardWidth = Math.min(60, (width - 24) / 6 - 2);
   const scenario = getTwoHandE2EScenarioFromLocation();
   const autoOpenBoardModal = !shouldDisableTwoHandBoardModalForE2E();
   const [game, setGame] = useState<TwoHandGameState>(() =>
@@ -69,6 +85,7 @@ export default function TwoHandGameScreen({
       round.boardId!,
       round.handsLimit!,
       scenario,
+      cardImprovements,
     ),
   );
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
@@ -83,6 +100,13 @@ export default function TwoHandGameScreen({
   boardModalManualRef.current = boardModalManual;
   const [showRoundIntro, setShowRoundIntro] = useState(true);
   const [abilityTooltip, setAbilityTooltip] = useState<AbilityTooltipState | null>(null);
+  const [midpointRewardShown, setMidpointRewardShown] = useState(false);
+  const [midpointRewardPending, setMidpointRewardPending] = useState(false);
+  const [midpointRewardCards, setMidpointRewardCards] = useState<Card[]>([]);
+  const [showMidpointReward, setShowMidpointReward] = useState(false);
+  const [pendingBlackjackCard, setPendingBlackjackCard] = useState<Card | null>(null);
+  const previousProgressRef = useRef(game.board.totalProgress);
+  const midpointRewardPendingRef = useRef(false);
   const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const spotlightRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousBoardRef = useRef<BoardState>(cloneBoard(game.board));
@@ -116,6 +140,30 @@ export default function TwoHandGameScreen({
       ),
     [abilities],
   );
+
+  useEffect(() => {
+    const progress = game.board.totalProgress;
+    const crossedHalfway =
+      previousProgressRef.current < round.targetScore / 2 && progress >= round.targetScore / 2;
+    previousProgressRef.current = progress;
+    if (crossedHalfway && !midpointRewardShown) setMidpointRewardPending(true);
+    if (showRoundIntro || (!crossedHalfway && !midpointRewardPending) || midpointRewardShown)
+      return;
+
+    setMidpointRewardShown(true);
+    setMidpointRewardPending(false);
+    const choices = rollCardImprovementChoices(cardImprovements);
+    midpointRewardPendingRef.current = choices.length > 0;
+    setMidpointRewardCards(choices);
+    setShowMidpointReward(choices.length > 0);
+  }, [
+    cardImprovements,
+    game.board.totalProgress,
+    midpointRewardPending,
+    midpointRewardShown,
+    round.targetScore,
+    showRoundIntro,
+  ]);
 
   useEffect(() => {
     const previousBoard = previousBoardRef.current;
@@ -177,10 +225,15 @@ export default function TwoHandGameScreen({
   }, [autoOpenBoardModal, game.board, showRoundIntro]);
 
   useEffect(() => {
+    if (game.handResult || game.phase === 'round_over') setShowBoardModal(false);
+  }, [game.handResult, game.phase]);
+
+  useEffect(() => {
+    if (midpointRewardPendingRef.current || showMidpointReward) return;
     if (game.phase !== 'pegging' || game.winner !== null || !isTwoHandPeggingComplete(game)) return;
     const withLastCard = awardGoTwoHands(game, game.pegging.lastToPlay ?? 'top');
     setGame(withLastCard.phase === 'round_over' ? withLastCard : scoreTwoHandShow(withLastCard));
-  }, [game]);
+  }, [game, showMidpointReward]);
 
   useEffect(() => {
     return () => {
@@ -228,11 +281,18 @@ export default function TwoHandGameScreen({
     setSwapSelected(null);
   };
 
-  const playCard = (seat: TwoHandSeat, card: Card) => {
+  const playCard = (seat: TwoHandSeat, card: Card, blackjackValue?: number) => {
     if (game.phase !== 'pegging' || game.winner !== null || activePeggingSeat !== seat) return;
-    if (cardValue(card) + game.pegging.count > 31) return;
+    if (!canPlayPeggingCard(card, game.pegging.count, cardImprovements)) return;
+    if (
+      blackjackValue === undefined &&
+      getCardImprovement(cardImprovements, card)?.id === 'blackjack'
+    ) {
+      setPendingBlackjackCard(card);
+      return;
+    }
     onTrace('pegging_choice', { seat, cardId: card.id, count: game.pegging.count });
-    setGame((current) => playPeggingCard(current, seat, card));
+    setGame((current) => playPeggingCard(current, seat, card, blackjackValue));
   };
 
   const handlePass = () => {
@@ -268,6 +328,23 @@ export default function TwoHandGameScreen({
     }
 
     deal();
+  };
+
+  const completeMidpointReward = (card: Card, improvementId: CardImprovementId) => {
+    setGame((current) => ({
+      ...current,
+      cardImprovements: { ...current.cardImprovements, [card.id]: improvementId },
+    }));
+    onChooseCardImprovement(card, improvementId);
+    midpointRewardPendingRef.current = false;
+    setShowMidpointReward(false);
+  };
+
+  const chooseBlackjackValue = (value: number) => {
+    if (pendingBlackjackCard && activePeggingSeat) {
+      playCard(activePeggingSeat, pendingBlackjackCard, value);
+    }
+    setPendingBlackjackCard(null);
   };
 
   const renderSeat = (seat: TwoHandSeat, title: string, cards: Card[]) => {
@@ -327,11 +404,14 @@ export default function TwoHandGameScreen({
           </View>
         </View>
 
-        <View style={styles.row}>
+        <View style={[styles.row, styles.handRow]}>
           {cards.map((card) => (
             <CardView
               key={`${seat}-${card.id}`}
               card={card}
+              improvement={getCardImprovement(cardImprovements, card)}
+              compact={compactHand}
+              compactWidth={compactCardWidth}
               selected={selectedCards.includes(card.id) || swapSelected === card.id}
               disabled={
                 game.phase === 'discard' || game.phase === 'peek_starter'
@@ -339,7 +419,8 @@ export default function TwoHandGameScreen({
                   : game.phase === 'swap'
                     ? game.swapSeat !== seat
                     : game.phase === 'pegging'
-                      ? activePeggingSeat !== seat || cardValue(card) + game.pegging.count > 31
+                      ? activePeggingSeat !== seat ||
+                        !canPlayPeggingCard(card, game.pegging.count, cardImprovements)
                       : true
               }
               onPress={
@@ -456,7 +537,11 @@ export default function TwoHandGameScreen({
             <Text style={styles.sectionLabel}>Starter</Text>
             <View style={styles.starterInlineRow}>
               {game.starter ? (
-                <CardView card={game.starter} small />
+                <CardView
+                  card={game.starter}
+                  improvement={getCardImprovement(cardImprovements, game.starter)}
+                  small
+                />
               ) : (
                 <View style={styles.starterPlaceholder}>
                   <Text style={styles.placeholderText}>?</Text>
@@ -485,6 +570,7 @@ export default function TwoHandGameScreen({
                   <CardView
                     key={`crib-${card.id}`}
                     card={card}
+                    improvement={getCardImprovement(cardImprovements, card)}
                     small
                     faceDown={game.phase === 'swap' || game.phase === 'pegging'}
                   />
@@ -521,7 +607,12 @@ export default function TwoHandGameScreen({
                 <Text style={styles.placeholderText}>Empty</Text>
               ) : (
                 game.pegging.pile.map((card, index) => (
-                  <CardView key={`pile-${card.id}-${index}`} card={card} small />
+                  <CardView
+                    key={`pile-${card.id}-${index}`}
+                    card={card}
+                    improvement={getCardImprovement(cardImprovements, card)}
+                    small
+                  />
                 ))
               )}
             </View>
@@ -564,48 +655,14 @@ export default function TwoHandGameScreen({
             </>
           )}
         </View>
-
-        {(game.handResult || game.phase === 'round_over') && (
-          <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>Hand Results</Text>
-            {game.handResult ? (
-              <>
-                <Text style={styles.resultLine}>Top hand: +{game.handResult.topHand} pts</Text>
-                <Text style={styles.resultLine}>
-                  Bottom hand: +{game.handResult.bottomHand} pts
-                </Text>
-                <Text style={styles.resultLine}>Crib: +{game.handResult.crib} pts</Text>
-                <Text style={styles.resultLine}>
-                  Combined this hand: +{game.handResult.combinedTotal} pts
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.resultLine}>
-                The round ended during pegging at {game.board.totalProgress}/{round.targetScore}.
-              </Text>
-            )}
-
-            {game.phase === 'round_over' && (
-              <Text style={[styles.winnerText, game.winner ? styles.playerWon : styles.aiWon]}>
-                {game.winner
-                  ? '🎉 Round cleared!'
-                  : `💀 Out of hands. Finished at ${game.board.totalProgress}/${round.targetScore}.`}
-              </Text>
-            )}
-
-            <TouchableOpacity style={styles.btn} onPress={handleNext}>
-              <Text style={styles.btnText}>
-                {game.phase === 'round_over' ? 'Continue →' : 'Next Hand →'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
 
       <Modal
         transparent
         animationType="fade"
-        visible={showRoundIntro || showBoardModal}
+        visible={
+          showRoundIntro || (showBoardModal && !game.handResult && game.phase !== 'round_over')
+        }
         onRequestClose={() => {
           if (!showRoundIntro) setShowBoardModal(false);
         }}
@@ -651,6 +708,53 @@ export default function TwoHandGameScreen({
         </Pressable>
       </Modal>
 
+      <Modal
+        transparent
+        animationType="fade"
+        visible={
+          !showRoundIntro &&
+          !showMidpointReward &&
+          (!!game.handResult || game.phase === 'round_over')
+        }
+        onRequestClose={() => undefined}
+      >
+        <View style={styles.resultModalOverlay}>
+          <View style={styles.resultBox}>
+            <Text style={styles.resultTitle}>Hand Results</Text>
+            {game.handResult ? (
+              <>
+                <Text style={styles.resultLine}>Top hand: +{game.handResult.topHand} pts</Text>
+                <Text style={styles.resultLine}>
+                  Bottom hand: +{game.handResult.bottomHand} pts
+                </Text>
+                <Text style={styles.resultLine}>Crib: +{game.handResult.crib} pts</Text>
+                <Text style={styles.resultLine}>
+                  Combined this hand: +{game.handResult.combinedTotal} pts
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.resultLine}>
+                The round ended during pegging at {game.board.totalProgress}/{round.targetScore}.
+              </Text>
+            )}
+
+            {game.phase === 'round_over' && (
+              <Text style={[styles.winnerText, game.winner ? styles.playerWon : styles.aiWon]}>
+                {game.winner
+                  ? '🎉 Round cleared!'
+                  : `💀 Out of hands. Finished at ${game.board.totalProgress}/${round.targetScore}.`}
+              </Text>
+            )}
+
+            <TouchableOpacity style={styles.btn} onPress={handleNext}>
+              <Text style={styles.btnText}>
+                {game.phase === 'round_over' ? 'Continue →' : 'Next Hand →'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {abilityTooltip && (
         <Modal transparent animationType="fade" onRequestClose={() => setAbilityTooltip(null)}>
           <Pressable style={styles.tooltipOverlay} onPress={() => setAbilityTooltip(null)}>
@@ -661,6 +765,50 @@ export default function TwoHandGameScreen({
           </Pressable>
         </Modal>
       )}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showMidpointReward}
+        onRequestClose={() => undefined}
+      >
+        <View style={styles.rewardModal}>
+          <CardImprovementPicker
+            cards={midpointRewardCards}
+            title="Halfway Reward"
+            subtitle="Choose a card and one improvement for the rest of this run."
+            onChoose={completeMidpointReward}
+          />
+        </View>
+      </Modal>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={pendingBlackjackCard !== null}
+        onRequestClose={() => setPendingBlackjackCard(null)}
+      >
+        <Pressable style={styles.blackjackOverlay}>
+          <View style={styles.blackjackBox}>
+            <Text style={styles.blackjackTitle}>Blackjack</Text>
+            <Text style={styles.blackjackDescription}>Choose this Ace's value for pegging.</Text>
+            {[1, 11].map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.btn, game.pegging.count + value > 31 && styles.btnDisabled]}
+                disabled={game.pegging.count + value > 31}
+                onPress={() => chooseBlackjackValue(value)}
+              >
+                <Text style={styles.btnText}>Count as {value}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.btn, styles.btnSecondary]}
+              onPress={() => setPendingBlackjackCard(null)}
+            >
+              <Text style={styles.btnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -674,6 +822,32 @@ function cloneBoard(board: BoardState): BoardState {
 }
 
 const styles = StyleSheet.create({
+  rewardModal: {
+    flex: 1,
+    backgroundColor: '#0d1b2a',
+  },
+  blackjackOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  blackjackBox: {
+    backgroundColor: '#1a237e',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  blackjackTitle: {
+    color: '#FFD700',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  blackjackDescription: {
+    color: '#E3F2FD',
+    marginBottom: 12,
+  },
   container: {
     flex: 1,
     backgroundColor: '#1B5E20',
@@ -818,6 +992,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'flex-end',
   },
+  handRow: {
+    flexWrap: 'nowrap',
+  },
   sortToggle: {
     width: 24,
     height: 24,
@@ -944,8 +1121,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 12,
     padding: 16,
-    marginTop: 8,
     gap: 6,
+    width: '100%',
+    maxWidth: 420,
+  },
+  resultModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
   },
   resultTitle: {
     color: '#FFD700',

@@ -1,11 +1,13 @@
 import { UnlockedAbilities, AbilityId } from '../game/abilities';
 import { BoardId } from '../game/boards';
 import { GameMode, RoundConfig, getModeConfig } from '../game/modes';
+import { CardImprovementId, CardImprovements } from '../game/cardImprovements';
 
 export interface RunState {
   mode: GameMode;
   currentRoundIndex: number; // 0-3
   abilities: UnlockedAbilities;
+  cardImprovements: CardImprovements;
   roundResults: RoundResult[];
   runComplete: boolean;
   runWon: boolean;
@@ -29,9 +31,22 @@ export function createInitialRunState(mode: GameMode = 'classic'): RunState {
     mode,
     currentRoundIndex: 0,
     abilities: {},
+    cardImprovements: {},
     roundResults: [],
     runComplete: false,
     runWon: false,
+  };
+}
+
+export function addCardImprovement(
+  run: RunState,
+  cardId: string,
+  improvementId: CardImprovementId,
+): RunState {
+  if (run.cardImprovements[cardId]) return run;
+  return {
+    ...run,
+    cardImprovements: { ...run.cardImprovements, [cardId]: improvementId },
   };
 }
 

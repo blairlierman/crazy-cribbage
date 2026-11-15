@@ -1,6 +1,7 @@
 import { UnlockedAbilities } from '../game/abilities';
 import { createBoardState, type BoardId } from '../game/boards';
 import { createDeck, type Card, type Rank, type Suit } from '../game/cards';
+import { CardImprovements } from '../game/cardImprovements';
 import {
   type TwoHandGameState,
   createInitialTwoHandGameState,
@@ -22,23 +23,28 @@ export function createTwoHandGameStateForE2E(
   boardId: BoardId,
   handsLimit: number,
   scenario: TwoHandE2EScenario | null,
+  cardImprovements: CardImprovements = {},
 ): TwoHandGameState {
+  let state: TwoHandGameState;
   if (scenario === 'single_go')
-    return buildSingleGoState(abilities, targetScore, boardId, handsLimit);
-  if (scenario === 'double_go')
-    return buildDoubleGoState(abilities, targetScore, boardId, handsLimit);
-  if (scenario === 'discard_flow')
-    return buildDiscardFlowState(abilities, targetScore, boardId, handsLimit);
-  if (scenario === 'pegging_score')
-    return buildPeggingScoreState(abilities, targetScore, boardId, handsLimit);
-  if (scenario === 'show_progression')
-    return buildShowState(abilities, targetScore, boardId, handsLimit, 1);
-  if (scenario === 'winning_go')
-    return buildWinningGoState(abilities, targetScore, boardId, handsLimit);
-  if (scenario === 'loss_at_limit')
-    return buildShowState(abilities, targetScore, boardId, handsLimit, handsLimit);
-
-  return dealTwoHands(createInitialTwoHandGameState(abilities, targetScore, boardId, handsLimit));
+    state = buildSingleGoState(abilities, targetScore, boardId, handsLimit);
+  else if (scenario === 'double_go')
+    state = buildDoubleGoState(abilities, targetScore, boardId, handsLimit);
+  else if (scenario === 'discard_flow')
+    state = buildDiscardFlowState(abilities, targetScore, boardId, handsLimit);
+  else if (scenario === 'pegging_score')
+    state = buildPeggingScoreState(abilities, targetScore, boardId, handsLimit);
+  else if (scenario === 'show_progression')
+    state = buildShowState(abilities, targetScore, boardId, handsLimit, 1);
+  else if (scenario === 'winning_go')
+    state = buildWinningGoState(abilities, targetScore, boardId, handsLimit);
+  else if (scenario === 'loss_at_limit')
+    state = buildShowState(abilities, targetScore, boardId, handsLimit, handsLimit);
+  else
+    state = dealTwoHands(
+      createInitialTwoHandGameState(abilities, targetScore, boardId, handsLimit),
+    );
+  return { ...state, cardImprovements };
 }
 
 export function getTwoHandE2EScenarioFromLocation(): TwoHandE2EScenario | null {
