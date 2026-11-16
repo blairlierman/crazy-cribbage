@@ -12,6 +12,7 @@ import {
 import { aiChooseDiscards, aiChoosePeggingCard } from '../ai/aiLogic';
 import CardView from '../components/CardView';
 import ScoreBoard from '../components/ScoreBoard';
+import WheelOfFortune from '../components/WheelOfFortune';
 import { Card, cardValue, sortCards } from '../game/cards';
 import {
   GameState,
@@ -235,7 +236,7 @@ export default function GameScreen({
           );
           if (!playerCanPlayNow) {
             // Both can't play: go to last player, reset pile
-            const recipient = p.lastToPlay ?? 'player';
+            const recipient = p.playedCards[p.playedCards.length - 1]?.playedBy ?? 'player';
             let updated = awardGo(g, recipient);
             updated = resetPeggingPile(updated, recipient);
             aiThinkingRef.current = false;
@@ -271,8 +272,8 @@ export default function GameScreen({
     const { playerCards, aiCards } = game.pegging;
     if (playerCards.length === 0 && aiCards.length === 0) {
       // All cards played - last card goes to last player
-      const g = awardGo(game, game.pegging.lastToPlay ?? 'player');
-      const scored = scoreShow(g);
+      const g = game.pegging.count > 0 ? awardGo(game, game.pegging.lastToPlay ?? 'player') : game;
+      const scored = g.winner ? g : scoreShow(g);
       setGame(scored);
       setShowResult(true);
     }
@@ -320,7 +321,7 @@ export default function GameScreen({
     if (!canPlay) return;
     if (
       blackjackValue === undefined &&
-      getCardImprovement(cardImprovements, card)?.id === 'blackjack'
+      getPlayablePeggingValues(card, cardImprovements).length > 1
     ) {
       setPendingBlackjackCard(card);
       return;
@@ -339,7 +340,7 @@ export default function GameScreen({
       );
       if (!aiCanPlay) {
         // Both can't play; last player who played gets go
-        const recipient = p.lastToPlay ?? 'ai';
+        const recipient = p.playedCards[p.playedCards.length - 1]?.playedBy ?? 'ai';
         let updated = awardGo(g, recipient);
         updated = resetPeggingPile(updated, recipient);
         return updated;
@@ -416,6 +417,12 @@ export default function GameScreen({
       />
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        {game.wheelEffect && (
+          <WheelOfFortune
+            handNumber={game.handNumber}
+            effect={`${game.wheelEffect.name} — ${game.wheelEffect.description}`}
+          />
+        )}
         {/* AI Hand + Crib (crib to the right on wide screens) */}
         <View style={wideLayout ? styles.handAndCribRow : undefined}>
           <View style={[styles.section, wideLayout ? styles.handFlex : undefined]}>
@@ -744,9 +751,15 @@ export default function GameScreen({
       >
         <Pressable style={styles.blackjackOverlay}>
           <View style={styles.blackjackBox}>
-            <Text style={styles.blackjackTitle}>Blackjack</Text>
-            <Text style={styles.blackjackDescription}>Choose this Ace's value for pegging.</Text>
-            {[1, 11].map((value) => (
+            <Text style={styles.blackjackTitle}>
+              {pendingBlackjackCard &&
+                getCardImprovement(cardImprovements, pendingBlackjackCard)?.name}
+            </Text>
+            <Text style={styles.blackjackDescription}>Choose this card's value for pegging.</Text>
+            {(pendingBlackjackCard
+              ? getPlayablePeggingValues(pendingBlackjackCard, cardImprovements)
+              : []
+            ).map((value) => (
               <TouchableOpacity
                 key={value}
                 style={[styles.btn, game.pegging.count + value > 31 && styles.btnDisabled]}

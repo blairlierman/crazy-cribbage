@@ -46,7 +46,8 @@ export function scoreHand(
   if (pairsScore > 0) add(pairsScore, `Pairs (${pairsScore} pts)`);
 
   // Runs
-  const runsScore = countRuns(cards, improvements);
+  const runLengths = getRunLengths(cards, improvements);
+  const runsScore = sumRunLengths(runLengths);
   if (runsScore > 0) add(runsScore, `Runs (${runsScore} pts)`);
 
   const partnershipScore = countImprovedPairs(cards, improvements);
@@ -56,7 +57,7 @@ export function scoreHand(
     (card) =>
       card.rank === '4' && getCardImprovement(improvements, card)?.id === 'four_on_the_floor',
   );
-  if (fourOnTheFloor && getRunLengths(cards, improvements).some((length) => length === 4)) {
+  if (fourOnTheFloor && runLengths.some((length) => length === 4)) {
     add(4, 'Four on the Floor (+4)');
   }
 
@@ -67,6 +68,26 @@ export function scoreHand(
   // His nobs (Jack matching starter suit in hand)
   const nobsScore = countNobs(hand, starter);
   if (nobsScore > 0) add(nobsScore, 'His nobs (1 pt)');
+
+  // Base score includes counting-value and run changes, but not flat improvement bonuses.
+  const baseScore = fifteens * 2 + pairsScore + runsScore + flushScore + nobsScore;
+  const distinctRanks = new Set(cards.map((card) => card.rank)).size;
+  for (const card of hand) {
+    const improvement = getCardImprovement(improvements, card);
+    if (!improvement) continue;
+    const applies =
+      (improvement.id === 'third_wheel' && distinctRanks === 3) ||
+      (improvement.id === 'five_alive' && baseScore >= 10) ||
+      (improvement.id === 'eight_ball' && pairsScore > 0) ||
+      (improvement.id === 'jackpot' && card.rank === 'J' && card.suit === starter.suit) ||
+      (improvement.id === 'jack_of_trades' && pairsScore > 0 && runsScore > 0) ||
+      (improvement.id === 'queens_court' &&
+        cards.some((other) => other.rank === 'J' || other.rank === 'K')) ||
+      (improvement.id === 'royal_flush' && flushScore > 0) ||
+      (improvement.id === 'crown_jewels' &&
+        (flushScore > 0 || runLengths.some((length) => length >= 4)));
+    if (applies) add(2, `${improvement.name} (+2)`);
+  }
 
   return { total, breakdown };
 }
@@ -115,10 +136,6 @@ function countPairs(cards: Card[]): number {
     }
   }
   return score;
-}
-
-function countRuns(cards: Card[], improvements: CardImprovements = {}): number {
-  return getRunLengths(cards, improvements).reduce((score, length) => score + length, 0);
 }
 
 function getRunLengths(cards: Card[], improvements: CardImprovements = {}): number[] {
@@ -251,6 +268,11 @@ export function scorePegging(
 
   const improvement = getCardImprovement(improvements, justPlayed)?.id;
   if (improvement === 'call_my_number' && sum === 16) add(2, '16 for 2');
+  if (improvement === 'triple_threat' && runLen >= 3) add(2, 'Triple Threat (+2)');
+  if (improvement === 'high_five' && sum === 15) add(1, 'High Five (+1)');
+  if (improvement === 'perfect_ten' && sum === 20) add(2, 'Perfect Ten (+2)');
+  if (improvement === 'kings_ransom' && sum === 31) add(2, "King's Ransom (+2)");
+  if (improvement === 'tenacious' && sum === 31) add(2, 'Tenacious (+2)');
 
   const partnerImprovements: Array<[CardImprovementId, Rank]> = [
     ['best_hand_ever', '9'],
@@ -293,6 +315,16 @@ export function scorePegging(
   // Last card (go) = 1 – handled externally
 
   return { total, details };
+}
+
+// Call once on a go or last-card sequence end; 31 is handled by scorePegging.
+export function scorePeggingLastCard(
+  card: Card,
+  improvements: CardImprovements = {},
+): PeggingScore {
+  return getCardImprovement(improvements, card)?.id === 'tenacious'
+    ? { total: 2, details: ['Tenacious (+2)'] }
+    : { total: 0, details: [] };
 }
 
 function countPairsFromTop(pile: Card[]): number {

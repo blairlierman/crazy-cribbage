@@ -10,7 +10,19 @@ export type AbilityId =
   | 'lucky_cut' // reroll the starter card once per hand
   | 'extra_hand_card' // deal 7 cards, discard 3 (keep 4 + extra for scoring)
   | 'go_bonus' // go = 2 pts instead of 1
-  | 'crib_insight'; // see 1 card in opponent crib before show
+  | 'crib_insight' // see 1 card in opponent crib before show
+  | 'pair_specialist'
+  | 'flush_fund'
+  | 'noble_jack'
+  | 'thirty_one_club'
+  | 'first_blood'
+  | 'last_word'
+  | 'crib_builder'
+  | 'safety_net'
+  | 'double_trouble'
+  | 'royal_treatment'
+  | '777'
+  | 'wheel_of_fortune';
 
 export interface Ability {
   id: AbilityId;
@@ -93,6 +105,104 @@ export const ALL_ABILITIES: Ability[] = [
     maxStacks: 1,
     emoji: '🔍',
     modes: ['classic'],
+  },
+  {
+    id: 'pair_specialist',
+    name: 'Pair Specialist',
+    description: 'Score 1 extra point per pair in your shows.',
+    maxStacks: 1,
+    emoji: '👯',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'flush_fund',
+    name: 'Flush Fund',
+    description: 'Score 2 extra points for each scoring flush.',
+    maxStacks: 1,
+    emoji: '💰',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'noble_jack',
+    name: 'Noble Jack',
+    description: 'His nobs scores 3 points instead of 1.',
+    maxStacks: 1,
+    emoji: '🎩',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'thirty_one_club',
+    name: 'Thirty-One Club',
+    description: 'Score 2 extra points for pegging 31.',
+    maxStacks: 1,
+    emoji: '🎯',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'first_blood',
+    name: 'First Blood',
+    description: 'Score 2 extra points on each controlled seat’s first pegging score per hand.',
+    maxStacks: 1,
+    emoji: '🩸',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'last_word',
+    name: 'Last Word',
+    description: 'Score 1 extra point when awarded go or last card.',
+    maxStacks: 1,
+    emoji: '💬',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'crib_builder',
+    name: 'Crib Builder',
+    description: 'Score 2 extra points in your crib.',
+    maxStacks: 1,
+    emoji: '🏗️',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'safety_net',
+    name: 'Safety Net',
+    description: 'Score 2 extra points on a non-crib hand with a base score below 4.',
+    maxStacks: 1,
+    emoji: '🛟',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'double_trouble',
+    name: 'Double Trouble',
+    description: 'Score 3 extra points with pairs of at least two distinct ranks.',
+    maxStacks: 1,
+    emoji: '✌️',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'royal_treatment',
+    name: 'Royal Treatment',
+    description: 'Score 3 extra points with a Jack, Queen and King in the show.',
+    maxStacks: 1,
+    emoji: '👑',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: '777',
+    name: '777',
+    description:
+      'Three of a kind scores 7 instead of 6 in pegging and shows; four of a kind is unchanged.',
+    maxStacks: 1,
+    emoji: '🎰',
+    modes: ['classic', 'two_hands'],
+  },
+  {
+    id: 'wheel_of_fortune',
+    name: 'Wheel of Fortune',
+    description:
+      'Each deal rolls a visible small bonus or penalty for all your hands, but not the crib.',
+    maxStacks: 1,
+    emoji: '🎡',
+    modes: ['classic', 'two_hands'],
   },
 ];
 

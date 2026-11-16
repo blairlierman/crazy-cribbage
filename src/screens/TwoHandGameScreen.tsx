@@ -12,6 +12,7 @@ import {
 import BoardView from '../components/BoardView';
 import CardView from '../components/CardView';
 import CardImprovementPicker from '../components/CardImprovementPicker';
+import WheelOfFortune from '../components/WheelOfFortune';
 import { ALL_ABILITIES, UnlockedAbilities, hasAbility } from '../game/abilities';
 import { BoardState } from '../game/boards';
 import { Card, sortCards } from '../game/cards';
@@ -20,6 +21,7 @@ import {
   CardImprovements,
   canPlayPeggingCard,
   getCardImprovement,
+  getPlayablePeggingValues,
   rollCardImprovementChoices,
 } from '../game/cardImprovements';
 import { GameMode, RoundConfig } from '../game/modes';
@@ -231,7 +233,8 @@ export default function TwoHandGameScreen({
   useEffect(() => {
     if (midpointRewardPendingRef.current || showMidpointReward) return;
     if (game.phase !== 'pegging' || game.winner !== null || !isTwoHandPeggingComplete(game)) return;
-    const withLastCard = awardGoTwoHands(game, game.pegging.lastToPlay ?? 'top');
+    const withLastCard =
+      game.pegging.count > 0 ? awardGoTwoHands(game, game.pegging.lastToPlay ?? 'top') : game;
     setGame(withLastCard.phase === 'round_over' ? withLastCard : scoreTwoHandShow(withLastCard));
   }, [game, showMidpointReward]);
 
@@ -286,7 +289,7 @@ export default function TwoHandGameScreen({
     if (!canPlayPeggingCard(card, game.pegging.count, cardImprovements)) return;
     if (
       blackjackValue === undefined &&
-      getCardImprovement(cardImprovements, card)?.id === 'blackjack'
+      getPlayablePeggingValues(card, cardImprovements).length > 1
     ) {
       setPendingBlackjackCard(card);
       return;
@@ -301,7 +304,9 @@ export default function TwoHandGameScreen({
     setGame((current) => {
       const otherSeat: TwoHandSeat = activePeggingSeat === 'top' ? 'bottom' : 'top';
       if (!canSeatPlay(current, otherSeat)) {
-        const recipient = current.pegging.lastToPlay ?? otherSeat;
+        const recipient =
+          current.pegging.playedCards[current.pegging.playedCards.length - 1]?.playedBy ??
+          otherSeat;
         return resetTwoHandPegging(awardGoTwoHands(current, recipient), recipient);
       }
       return passPegging(current, activePeggingSeat);
@@ -462,6 +467,12 @@ export default function TwoHandGameScreen({
 
   return (
     <View style={styles.container}>
+      {game.wheelEffect && (
+        <WheelOfFortune
+          handNumber={game.handNumber}
+          effect={`${game.wheelEffect.name} — ${game.wheelEffect.description}`}
+        />
+      )}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <View style={styles.handsBadge}>
@@ -788,9 +799,15 @@ export default function TwoHandGameScreen({
       >
         <Pressable style={styles.blackjackOverlay}>
           <View style={styles.blackjackBox}>
-            <Text style={styles.blackjackTitle}>Blackjack</Text>
-            <Text style={styles.blackjackDescription}>Choose this Ace's value for pegging.</Text>
-            {[1, 11].map((value) => (
+            <Text style={styles.blackjackTitle}>
+              {pendingBlackjackCard &&
+                getCardImprovement(cardImprovements, pendingBlackjackCard)?.name}
+            </Text>
+            <Text style={styles.blackjackDescription}>Choose this card's value for pegging.</Text>
+            {(pendingBlackjackCard
+              ? getPlayablePeggingValues(pendingBlackjackCard, cardImprovements)
+              : []
+            ).map((value) => (
               <TouchableOpacity
                 key={value}
                 style={[styles.btn, game.pegging.count + value > 31 && styles.btnDisabled]}
