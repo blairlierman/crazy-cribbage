@@ -2,10 +2,18 @@ import { Card, cardValue, createDeck, shuffle } from './cards';
 import { scoreHand, scorePegging } from './scoring';
 import { UnlockedAbilities, hasAbility, abilityStacks } from './abilities';
 import {
+  WheelEffect,
+  applyShowAbilityBonuses,
+  getLastCardAbilityBonuses,
+  getPeggingAbilityBonuses,
+  rollWheelEffect,
+} from './abilityScoring';
+import {
   CardImprovements,
   getCardImprovement,
   getPeggingCard,
   getPeggingValue,
+  getPlayablePeggingValues,
   stealRobberPoints,
 } from './cardImprovements';
 
@@ -70,6 +78,8 @@ export interface GameState {
   cardImprovements: CardImprovements;
   swapsLeft: number;
   luckyRerollAvailable: boolean;
+  playerPeggingScored: boolean;
+  wheelEffect: WheelEffect | null;
   targetScore: number;
   winner: 'player' | 'ai' | null;
   handNumber: number;
@@ -111,6 +121,8 @@ export function createInitialGameState(
     cardImprovements,
     swapsLeft: 0,
     luckyRerollAvailable: false,
+    playerPeggingScored: false,
+    wheelEffect: null,
     targetScore,
     winner: null,
     handNumber: 0,
@@ -153,6 +165,8 @@ export function dealHands(state: GameState): GameState {
     handResult: null,
     swapsLeft: abilityStacks(state.abilities, 'swap_one'),
     luckyRerollAvailable: hasAbility(state.abilities, 'lucky_cut'),
+    playerPeggingScored: false,
+    wheelEffect: hasAbility(state.abilities, 'wheel_of_fortune') ? rollWheelEffect() : null,
     peggingLog: [],
     handNumber: state.handNumber + 1,
   };
@@ -246,11 +260,13 @@ function proceedToPegging(state: GameState): GameState {
   };
 }
 
-export function playerPlayCard(state: GameState, card: Card, blackjackValue = 1): GameState {
+export function playerPlayCard(state: GameState, card: Card, peggingValue?: number): GameState {
   const pegging = state.pegging;
 
   if (!pegging.playerCards.some((c) => c.id === card.id)) return state;
-  const value = getPeggingValue(card, state.cardImprovements, blackjackValue);
+  const allowedValues = getPlayablePeggingValues(card, state.cardImprovements);
+  const value = peggingValue ?? getPeggingValue(card, state.cardImprovements);
+  if (!allowedValues.includes(value)) return state;
   if (pegging.count + value > 31) return state;
 
   const playedCard = getPeggingCard(card, state.cardImprovements);
@@ -264,14 +280,21 @@ export function playerPlayCard(state: GameState, card: Card, blackjackValue = 1)
   ];
 
   const score = scorePegging(newPile, playedCard, state.cardImprovements, newPileValues);
-  let pts = score.total;
+  const stolen = stealRobberPoints(card, pegging.aiCards, state.ai.score, state.cardImprovements);
+  const bonus = getPeggingAbilityBonuses(
+    newPile,
+    newCount,
+    { ...score, total: score.total + stolen },
+    state.abilities,
+    !state.playerPeggingScored,
+  );
+  const pts = score.total + bonus.bonus;
 
   let log = [...state.peggingLog];
-  if (score.details.length > 0) {
-    log.push(`Player: ${score.details.join(', ')}`);
+  if (score.details.length > 0 || bonus.descriptions.length > 0) {
+    log.push(`Player: ${[...score.details, ...bonus.descriptions].join(', ')}`);
   }
 
-  const stolen = stealRobberPoints(card, pegging.aiCards, state.ai.score, state.cardImprovements);
   if (stolen > 0) log.push(`Robber steals ${stolen} point${stolen === 1 ? '' : 's'} from AI`);
   let playerScore = state.player.score + pts + stolen;
   let aiScore = state.ai.score - stolen;
@@ -308,6 +331,7 @@ export function playerPlayCard(state: GameState, card: Card, blackjackValue = 1)
     ai: { ...state.ai, score: aiScore },
     pegging: newPegging,
     peggingLog: log,
+    playerPeggingScored: state.playerPeggingScored || pts + stolen > 0,
   };
 
   // Check win
@@ -326,10 +350,20 @@ export function playerPass(state: GameState): GameState {
 }
 
 export function awardGo(state: GameState, recipient: 'player' | 'ai'): GameState {
-  const goBonus = hasAbility(state.abilities, 'go_bonus') ? 1 : 0;
-  const pts = 1 + goBonus;
+  const isPlayer = recipient === 'player';
+  const lastCard = state.pegging.pile[state.pegging.pile.length - 1];
+  const tenacious =
+    lastCard && getCardImprovement(state.cardImprovements, lastCard)?.id === 'tenacious';
+  const goBonus = isPlayer && hasAbility(state.abilities, 'go_bonus') ? 1 : 0;
+  const bonus = getLastCardAbilityBonuses(
+    isPlayer ? state.abilities : null,
+    !state.playerPeggingScored,
+  );
+  const pts = 1 + goBonus + bonus.bonus + (tenacious ? 2 : 0);
   let log = [...state.peggingLog];
-  log.push(`${recipient === 'player' ? 'Player' : 'AI'} gets go (+${pts})`);
+  log.push(
+    `${recipient === 'player' ? 'Player' : 'AI'} gets go (+${pts})${bonus.descriptions.length ? `: ${bonus.descriptions.join(', ')}` : ''}${tenacious ? ' Tenacious (+2)' : ''}`,
+  );
 
   if (recipient === 'player') {
     const playerScore = state.player.score + pts;
@@ -337,6 +371,7 @@ export function awardGo(state: GameState, recipient: 'player' | 'ai'): GameState
       return {
         ...state,
         player: { ...state.player, score: playerScore },
+        playerPeggingScored: true,
         winner: 'player',
         phase: 'round_over',
         peggingLog: log,
@@ -345,6 +380,7 @@ export function awardGo(state: GameState, recipient: 'player' | 'ai'): GameState
     return {
       ...state,
       player: { ...state.player, score: playerScore },
+      playerPeggingScored: true,
       peggingLog: log,
     };
   } else {
@@ -384,30 +420,7 @@ export function scoreShow(state: GameState): GameState {
   if (!state.starter) return state;
 
   const abilities = state.abilities;
-  const doubleFifteens = hasAbility(abilities, 'double_fifteens');
-  const runBonus = abilityStacks(abilities, 'run_bonus');
   const cribThief = hasAbility(abilities, 'steal_crib');
-
-  function applyBonuses(base: import('./scoring').ScoredHand): number {
-    let total = base.total;
-    if (doubleFifteens) {
-      // Already counted at 2x, add another 2x
-      const fifteenEntries = base.breakdown.filter((b) => b.description.includes('fifteen'));
-      const fifteenPts = fifteenEntries.reduce((s, b) => s + b.points, 0);
-      total += fifteenPts; // double them
-    }
-    if (runBonus > 0) {
-      const runEntries = base.breakdown.filter((b) => b.description.includes('Run'));
-      for (const r of runEntries) {
-        // Add runBonus per card in the run
-        const match = r.description.match(/of (\d+)/);
-        if (match) {
-          total += parseInt(match[1]) * runBonus;
-        }
-      }
-    }
-    return total;
-  }
 
   const cribOwner = state.dealer;
   const cribGoesToPlayer = cribOwner === 'player' || cribThief;
@@ -425,14 +438,18 @@ export function scoreShow(state: GameState): GameState {
   let winner: 'player' | 'ai' | null = null;
 
   const scoreSideHand = (side: 'player' | 'ai') => {
-    const base = scoreHand(
-      side === 'player' ? state.player.hand : state.ai.hand,
+    const hand = side === 'player' ? state.player.hand : state.ai.hand;
+    const base = scoreHand(hand, state.starter!, false, state.cardImprovements);
+    const scored = applyShowAbilityBonuses(
+      base,
+      hand,
       state.starter!,
       false,
-      state.cardImprovements,
+      side === 'player' ? abilities : null,
+      state.wheelEffect,
     );
-    const pts = applyBonuses(base);
-    const breakdown = base.breakdown.map((b) => b.description);
+    const pts = scored.total;
+    const breakdown = scored.breakdown.map((b) => b.description);
 
     if (side === 'player') {
       playerHandPts = pts;
@@ -459,8 +476,16 @@ export function scoreShow(state: GameState): GameState {
       true,
       state.cardImprovements,
     );
-    cribPts = applyBonuses(baseCribScore);
-    cribBreakdown = baseCribScore.breakdown.map((b) => b.description);
+    const scored = applyShowAbilityBonuses(
+      baseCribScore,
+      state.crib.slice(0, 4),
+      state.starter,
+      true,
+      cribGoesToPlayer ? abilities : null,
+      state.wheelEffect,
+    );
+    cribPts = scored.total;
+    cribBreakdown = scored.breakdown.map((b) => b.description);
 
     if (cribGoesToPlayer) {
       playerScore += cribPts;

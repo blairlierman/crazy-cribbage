@@ -5,14 +5,28 @@ export type CardImprovementId =
   | 'blackjack'
   | 'times_two'
   | 'best_hand_ever'
+  | 'triple_threat'
+  | 'third_wheel'
   | 'put_me_in_coach'
   | 'four_on_the_floor'
+  | 'high_five'
+  | 'five_alive'
   | 'gen_z'
   | 'call_my_number'
   | 'kids_these_days'
   | 'robber'
+  | 'crazy_eight'
+  | 'eight_ball'
   | 'uno_reverse'
-  | 'best_hand';
+  | 'best_hand'
+  | 'perfect_ten'
+  | 'tenacious'
+  | 'jackpot'
+  | 'jack_of_trades'
+  | 'queens_court'
+  | 'royal_flush'
+  | 'kings_ransom'
+  | 'crown_jewels';
 
 export interface CardImprovement {
   id: CardImprovementId;
@@ -47,7 +61,18 @@ export const CARD_IMPROVEMENTS: Record<Rank, [CardImprovement, CardImprovement] 
       description: 'Scores 2 bonus points when paired with a 9.',
     },
   ],
-  '3': [],
+  '3': [
+    {
+      id: 'triple_threat',
+      name: 'Triple Threat',
+      description: 'Scores 2 bonus points when this 3 completes a pegging run.',
+    },
+    {
+      id: 'third_wheel',
+      name: 'Third Wheel',
+      description: 'Scores 2 bonus points if the scored hand contains exactly 3 distinct ranks.',
+    },
+  ],
   '4': [
     {
       id: 'put_me_in_coach',
@@ -60,7 +85,18 @@ export const CARD_IMPROVEMENTS: Record<Rank, [CardImprovement, CardImprovement] 
       description: 'Scores 4 bonus points for a four-card run.',
     },
   ],
-  '5': [],
+  '5': [
+    {
+      id: 'high_five',
+      name: 'High Five',
+      description: 'Scores 1 bonus point when this 5 makes 15 in pegging.',
+    },
+    {
+      id: 'five_alive',
+      name: 'Five Alive',
+      description: 'Scores 2 bonus points if the hand base score is at least 10.',
+    },
+  ],
   '6': [
     {
       id: 'gen_z',
@@ -85,7 +121,18 @@ export const CARD_IMPROVEMENTS: Record<Rank, [CardImprovement, CardImprovement] 
       description: 'Steals points equal to a random card in the opposite hand when played.',
     },
   ],
-  '8': [],
+  '8': [
+    {
+      id: 'crazy_eight',
+      name: 'Crazy Eight',
+      description: 'Choose whether this 8 counts as 1 or 8 during pegging.',
+    },
+    {
+      id: 'eight_ball',
+      name: 'Eight Ball',
+      description: 'Scores 2 bonus points if the scored hand contains a pair.',
+    },
+  ],
   '9': [
     {
       id: 'uno_reverse',
@@ -98,10 +145,54 @@ export const CARD_IMPROVEMENTS: Record<Rank, [CardImprovement, CardImprovement] 
       description: 'Scores 2 bonus points when paired with a 2.',
     },
   ],
-  '10': [],
-  J: [],
-  Q: [],
-  K: [],
+  '10': [
+    {
+      id: 'perfect_ten',
+      name: 'Perfect Ten',
+      description: 'Scores 2 bonus points when this 10 makes 20 in pegging.',
+    },
+    {
+      id: 'tenacious',
+      name: 'Tenacious',
+      description: 'Scores 2 bonus points when this 10 is the last card of a pegging sequence.',
+    },
+  ],
+  J: [
+    {
+      id: 'jackpot',
+      name: 'Jackpot',
+      description: 'Scores 2 bonus points when this Jack scores nobs.',
+    },
+    {
+      id: 'jack_of_trades',
+      name: 'Jack of Trades',
+      description: 'Scores 2 bonus points if the scored hand contains both a pair and a run.',
+    },
+  ],
+  Q: [
+    {
+      id: 'queens_court',
+      name: "Queen's Court",
+      description: 'Scores 2 bonus points if scored with a Jack or King.',
+    },
+    {
+      id: 'royal_flush',
+      name: 'Royal Flush',
+      description: 'Scores 2 bonus points for a scoring flush.',
+    },
+  ],
+  K: [
+    {
+      id: 'kings_ransom',
+      name: "King's Ransom",
+      description: 'Scores 2 bonus points when this King makes 31 in pegging.',
+    },
+    {
+      id: 'crown_jewels',
+      name: 'Crown Jewels',
+      description: 'Scores 2 bonus points for a scoring flush or a run of at least 4.',
+    },
+  ],
 };
 
 export function getCardImprovement(
@@ -131,19 +222,21 @@ export function getPeggingCard(card: Card, improvements: CardImprovements): Card
 export function getPeggingValue(
   card: Card,
   improvements: CardImprovements,
-  blackjackValue = 1,
+  chosenValue?: number,
 ): number {
   const improvement = getCardImprovement(improvements, card)?.id;
   if (improvement === 'put_me_in_coach') return 5;
   if (improvement === 'uno_reverse') return 6;
-  if (improvement === 'blackjack') return blackjackValue;
+  if (improvement === 'blackjack') return chosenValue ?? 1;
+  if (improvement === 'crazy_eight') return chosenValue === 1 ? 1 : 8;
   return cardValue(card);
 }
 
 export function getPlayablePeggingValues(card: Card, improvements: CardImprovements): number[] {
-  return getCardImprovement(improvements, card)?.id === 'blackjack'
-    ? [1, 11]
-    : [getPeggingValue(card, improvements)];
+  const improvement = getCardImprovement(improvements, card)?.id;
+  if (improvement === 'blackjack') return [1, 11];
+  if (improvement === 'crazy_eight') return [1, 8];
+  return [getPeggingValue(card, improvements)];
 }
 
 export function canPlayPeggingCard(

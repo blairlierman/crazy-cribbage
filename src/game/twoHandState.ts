@@ -1,4 +1,11 @@
 import { UnlockedAbilities, abilityStacks, hasAbility } from './abilities';
+import {
+  WheelEffect,
+  applyShowAbilityBonuses,
+  getLastCardAbilityBonuses,
+  getPeggingAbilityBonuses,
+  rollWheelEffect,
+} from './abilityScoring';
 import { applyBoardScore, BoardState, createBoardState } from './boards';
 import { Card, cardValue, createDeck, shuffle } from './cards';
 import { scoreHand, scorePegging } from './scoring';
@@ -7,6 +14,8 @@ import {
   canPlayPeggingCard,
   getPeggingCard,
   getPeggingValue,
+  getPlayablePeggingValues,
+  getCardImprovement,
   stealRobberPoints,
 } from './cardImprovements';
 
@@ -72,6 +81,8 @@ export interface TwoHandGameState {
   cardImprovements: CardImprovements;
   swapsLeft: Record<TwoHandSeat, number>;
   luckyRerollAvailable: boolean;
+  peggingScored: Record<TwoHandSeat, boolean>;
+  wheelEffect: WheelEffect | null;
   targetScore: number;
   board: BoardState;
   winner: boolean | null;
@@ -104,6 +115,8 @@ export function createInitialTwoHandGameState(
     cardImprovements,
     swapsLeft: { top: 0, bottom: 0 },
     luckyRerollAvailable: false,
+    peggingScored: { top: false, bottom: false },
+    wheelEffect: null,
     targetScore,
     board: createBoardState(boardId),
     winner: null,
@@ -158,6 +171,8 @@ export function dealTwoHands(state: TwoHandGameState): TwoHandGameState {
       bottom: abilityStacks(state.abilities, 'swap_one'),
     },
     luckyRerollAvailable: hasAbility(state.abilities, 'lucky_cut'),
+    peggingScored: { top: false, bottom: false },
+    wheelEffect: hasAbility(state.abilities, 'wheel_of_fortune') ? rollWheelEffect() : null,
     handNumber: state.handNumber + 1,
     handStartScores: {
       top: state.top.score,
@@ -295,12 +310,14 @@ export function playPeggingCard(
   state: TwoHandGameState,
   seat: TwoHandSeat,
   card: Card,
-  blackjackValue = 1,
+  peggingValue?: number,
 ): TwoHandGameState {
   const pegging = state.pegging;
   const cards = seat === 'top' ? pegging.topCards : pegging.bottomCards;
   if (!cards.some((c) => c.id === card.id)) return state;
-  const value = getPeggingValue(card, state.cardImprovements, blackjackValue);
+  const allowedValues = getPlayablePeggingValues(card, state.cardImprovements);
+  const value = peggingValue ?? getPeggingValue(card, state.cardImprovements);
+  if (!allowedValues.includes(value)) return state;
   if (value + pegging.count > 31) return state;
 
   const playedCard = getPeggingCard(card, state.cardImprovements);
@@ -312,16 +329,33 @@ export function playPeggingCard(
   const newCount = pegging.count + value;
   const remainingCards = cards.filter((c) => c.id !== card.id);
   const score = scorePegging(newPile, playedCard, state.cardImprovements, newPileValues);
+  const otherSeat: TwoHandSeat = seat === 'top' ? 'bottom' : 'top';
+  const stolen = stealRobberPoints(
+    card,
+    pegging[otherSeat === 'top' ? 'topCards' : 'bottomCards'],
+    state[otherSeat].score,
+    state.cardImprovements,
+  );
+  const bonus = getPeggingAbilityBonuses(
+    newPile,
+    newCount,
+    { ...score, total: score.total + stolen },
+    state.abilities,
+    !state.peggingScored[seat],
+  );
+  const points = score.total + bonus.bonus;
   const log = [...state.peggingLog];
-  if (score.details.length > 0) {
-    log.push(`${seat === 'top' ? 'Top' : 'Bottom'}: ${score.details.join(', ')}`);
+  if (score.details.length > 0 || bonus.descriptions.length > 0) {
+    log.push(
+      `${seat === 'top' ? 'Top' : 'Bottom'}: ${[...score.details, ...bonus.descriptions].join(', ')}`,
+    );
   }
 
   let topScore = state.top.score;
   let bottomScore = state.bottom.score;
-  if (seat === 'top') topScore += score.total;
-  else bottomScore += score.total;
-  const board = score.total > 0 ? applyBoardScore(state.board, score.total).board : state.board;
+  if (seat === 'top') topScore += points;
+  else bottomScore += points;
+  const board = points > 0 ? applyBoardScore(state.board, points).board : state.board;
 
   let newPegging: TwoHandPeggingState = {
     ...pegging,
@@ -336,13 +370,6 @@ export function playPeggingCard(
     lastToPlay: seat,
   };
 
-  const otherSeat: TwoHandSeat = seat === 'top' ? 'bottom' : 'top';
-  const stolen = stealRobberPoints(
-    card,
-    pegging[otherSeat === 'top' ? 'topCards' : 'bottomCards'],
-    state[otherSeat].score,
-    state.cardImprovements,
-  );
   if (stolen > 0)
     log.push(`Robber steals ${stolen} point${stolen === 1 ? '' : 's'} from ${otherSeat}`);
   if (seat === 'top') {
@@ -374,6 +401,10 @@ export function playPeggingCard(
     board,
     pegging: newPegging,
     peggingLog: log,
+    peggingScored: {
+      ...state.peggingScored,
+      [seat]: state.peggingScored[seat] || points + stolen > 0,
+    },
     winner: board.totalProgress >= state.targetScore ? true : state.winner,
     phase: board.totalProgress >= state.targetScore ? 'round_over' : state.phase,
   };
@@ -387,13 +418,22 @@ export function passPegging(state: TwoHandGameState, seat: TwoHandSeat): TwoHand
 }
 
 export function awardGoTwoHands(state: TwoHandGameState, seat: TwoHandSeat): TwoHandGameState {
-  const pts = 1 + (hasAbility(state.abilities, 'go_bonus') ? 1 : 0);
-  const log = [...state.peggingLog, `${seat === 'top' ? 'Top' : 'Bottom'} gets go (+${pts})`];
+  const lastCard = state.pegging.pile[state.pegging.pile.length - 1];
+  const tenacious =
+    lastCard && getCardImprovement(state.cardImprovements, lastCard)?.id === 'tenacious';
+  const bonus = getLastCardAbilityBonuses(state.abilities, !state.peggingScored[seat]);
+  const pts =
+    1 + (hasAbility(state.abilities, 'go_bonus') ? 1 : 0) + bonus.bonus + (tenacious ? 2 : 0);
+  const log = [
+    ...state.peggingLog,
+    `${seat === 'top' ? 'Top' : 'Bottom'} gets go (+${pts})${bonus.descriptions.length ? `: ${bonus.descriptions.join(', ')}` : ''}${tenacious ? ' Tenacious (+2)' : ''}`,
+  ];
   const board = applyBoardScore(state.board, pts).board;
   if (seat === 'top') {
     return {
       ...state,
       top: { ...state.top, score: state.top.score + pts },
+      peggingScored: { ...state.peggingScored, [seat]: true },
       peggingLog: log,
       board,
       winner: board.totalProgress >= state.targetScore ? true : state.winner,
@@ -403,6 +443,7 @@ export function awardGoTwoHands(state: TwoHandGameState, seat: TwoHandSeat): Two
   return {
     ...state,
     bottom: { ...state.bottom, score: state.bottom.score + pts },
+    peggingScored: { ...state.peggingScored, [seat]: true },
     peggingLog: log,
     board,
     winner: board.totalProgress >= state.targetScore ? true : state.winner,
@@ -436,27 +477,6 @@ export function isTwoHandPeggingComplete(state: TwoHandGameState): boolean {
 export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
   if (!state.starter) return state;
 
-  const doubleFifteens = hasAbility(state.abilities, 'double_fifteens');
-  const runBonus = abilityStacks(state.abilities, 'run_bonus');
-
-  const applyBonuses = (base: ReturnType<typeof scoreHand>) => {
-    let total = base.total;
-    if (doubleFifteens) {
-      const fifteenPts = base.breakdown
-        .filter((b) => b.description.includes('fifteen'))
-        .reduce((sum, item) => sum + item.points, 0);
-      total += fifteenPts;
-    }
-    if (runBonus > 0) {
-      for (const line of base.breakdown) {
-        if (!line.description.includes('Run')) continue;
-        const match = line.description.match(/of (\d+)/);
-        if (match) total += parseInt(match[1], 10) * runBonus;
-      }
-    }
-    return total;
-  };
-
   const nonDealer: TwoHandSeat = state.dealer === 'top' ? 'bottom' : 'top';
   const dealer = state.dealer;
   const boardBefore = state.board;
@@ -471,8 +491,16 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
 
   const scoreSeatHand = (seat: TwoHandSeat) => {
     const base = scoreHand(state[seat].hand, state.starter!, false, state.cardImprovements);
-    const pts = applyBonuses(base);
-    const breakdown = base.breakdown.map((item) => item.description);
+    const scored = applyShowAbilityBonuses(
+      base,
+      state[seat].hand,
+      state.starter!,
+      false,
+      state.abilities,
+      state.wheelEffect,
+    );
+    const pts = scored.total;
+    const breakdown = scored.breakdown.map((item) => item.description);
     if (seat === 'top') {
       topHand = pts;
       topHandBreakdown = breakdown;
@@ -488,8 +516,16 @@ export function scoreTwoHandShow(state: TwoHandGameState): TwoHandGameState {
   scoreSeatHand(dealer);
 
   const baseCrib = scoreHand(state.crib, state.starter, true, state.cardImprovements);
-  crib = applyBonuses(baseCrib);
-  cribBreakdown = baseCrib.breakdown.map((item) => item.description);
+  const scoredCrib = applyShowAbilityBonuses(
+    baseCrib,
+    state.crib,
+    state.starter,
+    true,
+    state.abilities,
+    state.wheelEffect,
+  );
+  crib = scoredCrib.total;
+  cribBreakdown = scoredCrib.breakdown.map((item) => item.description);
   if (dealer === 'top') topScore += crib;
   else bottomScore += crib;
 
